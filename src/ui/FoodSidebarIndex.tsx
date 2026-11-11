@@ -250,28 +250,23 @@ export function FoodSidebarIndex({
             </button>
           </li>
           <li>
-            <button type="button" onClick={() => scrollToElement("ov-day-route")}>
-              01 · 🕒 十二时辰 · 一日四餐寻味动线
-            </button>
-          </li>
-          <li>
             <button type="button" onClick={() => scrollToElement("ov-signature-gallery")}>
-              02 · 必吃招牌名馔视觉画廊
-            </button>
-          </li>
-          <li>
-            <button type="button" onClick={() => scrollToElement("ov-radar-facts")}>
-              03 · 六维味型雷达与风味档案
+              一、必吃招牌名馔画廊
             </button>
           </li>
           <li>
             <button type="button" onClick={() => scrollToElement("ov-volumes")}>
-              04 · 五大食单分卷全景导读
+              二、五卷完整风味食单
             </button>
           </li>
           <li>
-            <button type="button" onClick={() => scrollToElement("ov-city-pk")}>
-              05 · ⚖️ 双城风味 PK 对比台
+            <button type="button" onClick={() => scrollToElement("ov-radar-facts")}>
+              三、六维味型与风味档案
+            </button>
+          </li>
+          <li>
+            <button type="button" onClick={() => scrollToElement("ov-day-route")}>
+              四、十二时辰寻味动线
             </button>
           </li>
         </ul>

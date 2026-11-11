@@ -5,7 +5,7 @@ from gen_special_topics import item, write_topic_ts
 
 RICE_NOODLES = {
     "id": "rice-noodles-compendium",
-    "index": "专题三",
+    "index": "专题四",
     "title": "中华粉全集 · 南方稻作与发酵酸香的嗦粉江湖",
     "kicker": "COMPENDIUM OF CHINESE RICE NOODLES",
     "subtitle": "从八桂嗦粉、云贵米线酸汤粉到湘赣拌炒粉、岭南粿条肠粉的完整稻作碳水图谱",
@@ -98,7 +98,7 @@ RICE_NOODLES = {
 
 HOTPOT = {
     "id": "hotpot-jianghu",
-    "index": "专题四",
+    "index": "专题五",
     "title": "火锅江湖图谱 · 围炉鼎沸的中国温度",
     "kicker": "HOTPOT JIANGHU ATLAS",
     "subtitle": "从重庆牛油九宫格到潮汕鲜切牛肉、京派铜锅涮肉与云贵酸汤菌锅的全国围炉地图",

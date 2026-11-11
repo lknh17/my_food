@@ -2,7 +2,7 @@ import type { SpecialTopicPack } from "../types";
 
 export const riceNoodlesCompendiumPack: SpecialTopicPack = {
   "id": "rice-noodles-compendium",
-  "index": "专题三",
+  "index": "专题四",
   "title": "中华粉全集 · 南方稻作与发酵酸香的嗦粉江湖",
   "kicker": "COMPENDIUM OF CHINESE RICE NOODLES",
   "subtitle": "从八桂嗦粉、云贵米线酸汤粉到湘赣拌炒粉、岭南粿条肠粉的完整稻作碳水图谱",

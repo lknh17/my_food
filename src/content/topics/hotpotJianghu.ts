@@ -2,7 +2,7 @@ import type { SpecialTopicPack } from "../types";
 
 export const hotpotJianghuPack: SpecialTopicPack = {
   "id": "hotpot-jianghu",
-  "index": "专题四",
+  "index": "专题五",
   "title": "火锅江湖图谱 · 围炉鼎沸的中国温度",
   "kicker": "HOTPOT JIANGHU ATLAS",
   "subtitle": "从重庆牛油九宫格到潮汕鲜切牛肉、京派铜锅涮肉与云贵酸汤菌锅的全国围炉地图",

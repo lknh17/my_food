@@ -2,7 +2,7 @@ import type { SpecialTopicPack } from "../types";
 
 export const noodlesCompendiumPack: SpecialTopicPack = {
   "id": "noodles-compendium",
-  "index": "专题二",
+  "index": "专题三",
   "title": "中华面全集 · 北麦南面九州筋骨",
   "kicker": "COMPENDIUM OF CHINESE NOODLES",
   "subtitle": "从西北蓬灰拉面、秦晋刀削扯面、巴蜀麻辣小面到江南精致苏式汤面的全谱系考据",

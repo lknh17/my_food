@@ -8,10 +8,10 @@ Generate Topics 2, 3, 4:
 """
 from gen_special_topics import item, write_topic_ts
 
-# 2. 中华面全集 (noodles-compendium)
+# 3. 中华面全集 (noodles-compendium)
 NOODLES_COMPENDIUM = {
     "id": "noodles-compendium",
-    "index": "专题二",
+    "index": "专题三",
     "title": "中华面全集 · 北麦南面九州筋骨",
     "kicker": "COMPENDIUM OF CHINESE NOODLES",
     "subtitle": "从西北蓬灰拉面、秦晋刀削扯面、巴蜀麻辣小面到江南精致苏式汤面的全谱系考据",

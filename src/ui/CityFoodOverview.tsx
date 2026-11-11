@@ -94,30 +94,13 @@ function buildCityDayRoute(pack: CityFoodPack): (DayRouteStop & { matchedCard?: 
 
 export function CityFoodOverview({
   pack,
-  allCities,
   onSelectVolume,
   onSelectCard,
-  onSelectCity,
 }: CityFoodOverviewProps) {
   const { overview } = pack;
   const { tastedDishSet, wishlistDishSet, toggleTasted, toggleWishlist } = useFoodFootprints();
-
-  const defaultPkCityId = useMemo(() => {
-    const sameProv = allCities.find((c) => c.id !== pack.id && c.province === pack.province);
-    if (sameProv) return sameProv.id;
-    const rivals = ["chengdu", "guangzhou", "beijing", "yangzhou", "chongqing", "xian"];
-    const picked = rivals.find((id) => id !== pack.id && allCities.some((c) => c.id === id));
-    return picked ?? allCities.find((c) => c.id !== pack.id)?.id ?? pack.id;
-  }, [pack, allCities]);
-
-  const [pkCityId, setPkCityId] = useState<string>(defaultPkCityId);
-
-  const pkCity = useMemo(
-    () =>
-      allCities.find((c) => c.id === pkCityId && c.id !== pack.id) ??
-      allCities.find((c) => c.id === defaultPkCityId) ??
-      allCities[0],
-    [allCities, pkCityId, pack.id, defaultPkCityId],
+  const [sigFilter, setSigFilter] = useState<"all" | "dacai" | "xiaochi" | "zhushi" | "fengwu">(
+    "all",
   );
 
   const cuisineMeta = EIGHT_CUISINES_META[pack.eightCuisine] ?? EIGHT_CUISINES_META.local;
@@ -133,22 +116,51 @@ export function CityFoodOverview({
   }, [pack]);
 
   const signatureCards = useMemo(() => {
+    const coreVolumeIds = new Set<FoodCategoryId>(["dacai", "xiaochi", "zhushi", "fengwu"]);
     const picked: { card: DishCard; volumeTitle: string; volumeIndex: string }[] = [];
     for (const v of pack.volumes) {
-      if (v.id === "shijie") continue;
-      if (v.cards[0]) {
-        picked.push({ card: v.cards[0], volumeTitle: v.title, volumeIndex: v.index });
+      if (!coreVolumeIds.has(v.id)) continue;
+      for (const card of v.cards) {
+        picked.push({ card, volumeTitle: v.title, volumeIndex: v.index });
       }
     }
-    for (const v of pack.volumes) {
-      if (picked.length >= 6) break;
-      if (v.id === "shijie") continue;
-      if (v.cards[1]) {
-        picked.push({ card: v.cards[1], volumeTitle: v.title, volumeIndex: v.index });
-      }
-    }
-    return picked.slice(0, 6);
+    return picked;
   }, [pack]);
+
+  const signaturePillDishes = useMemo(() => {
+    const out: string[] = [];
+    const seenTitles = new Set<string>();
+    const seenCardIds = new Set<string>();
+
+    for (const rawName of pack.signatureDishes) {
+      const dishName = rawName.trim();
+      if (!dishName || seenTitles.has(dishName)) continue;
+      const matched = signatureCards.find(
+        (c) => c.card.title.includes(dishName) || dishName.includes(c.card.title),
+      );
+      if (matched) {
+        if (seenCardIds.has(matched.card.id)) continue;
+        seenCardIds.add(matched.card.id);
+      }
+      seenTitles.add(dishName);
+      out.push(dishName);
+    }
+
+    for (const { card } of signatureCards) {
+      if (out.length >= 12) break;
+      if (seenCardIds.has(card.id) || seenTitles.has(card.title)) continue;
+      seenCardIds.add(card.id);
+      seenTitles.add(card.title);
+      out.push(card.title);
+    }
+
+    return out.slice(0, 12);
+  }, [pack.signatureDishes, signatureCards]);
+
+  const filteredSignatureCards = useMemo(() => {
+    if (sigFilter === "all") return signatureCards;
+    return signatureCards.filter((item) => item.card.category === sigFilter);
+  }, [signatureCards, sigFilter]);
 
   const dayRouteStops = useMemo(() => buildCityDayRoute(pack), [pack]);
 
@@ -205,26 +217,16 @@ export function CityFoodOverview({
     return { cx, cy, axes, polygonPoints, rings };
   }, [radarItems]);
 
-  // Quick rival cities for PK comparison
-  const quickPkCandidates = useMemo(() => {
-    const out: CityFoodPack[] = [];
-    const seen = new Set<string>([pack.id]);
-    for (const c of allCities) {
-      if (c.province === pack.province && !seen.has(c.id)) {
-        out.push(c);
-        seen.add(c.id);
-      }
-    }
-    const famousIds = ["chengdu", "guangzhou", "beijing", "yangzhou", "chongqing", "xian", "changsha", "shanghai"];
-    for (const fid of famousIds) {
-      const found = allCities.find((c) => c.id === fid);
-      if (found && !seen.has(found.id)) {
-        out.push(found);
-        seen.add(found.id);
-      }
-    }
-    return out.slice(0, 8);
-  }, [pack, allCities]);
+  const signatureFilterOptions: {
+    id: "all" | "dacai" | "xiaochi" | "zhushi" | "fengwu";
+    label: string;
+  }[] = [
+    { id: "all", label: `全部必吃招牌 (${signatureCards.length})` },
+    { id: "dacai", label: "🍲 镇桌大菜" },
+    { id: "xiaochi", label: "🥟 街头小吃" },
+    { id: "zhushi", label: "🍜 粉面碳水" },
+    { id: "fengwu", label: "🌿 道地风物" },
+  ];
 
   return (
     <article className="essay city-food-overview single-column-essay" data-testid="city-food-overview">
@@ -253,7 +255,7 @@ export function CityFoodOverview({
         {/* 招牌菜标签速览 */}
         <div className="ov-signature-pills">
           <span className="ov-sig-label">🥢 镇城必吃名片（点击直达该菜）：</span>
-          {pack.signatureDishes.map((dishName) => {
+          {signaturePillDishes.map((dishName) => {
             const matched = allCityCards.find(
               (c) => c.card.title.includes(dishName) || dishName.includes(c.card.title),
             );
@@ -284,83 +286,7 @@ export function CityFoodOverview({
         </div>
       </header>
 
-      {/* 1. 十二时辰 · 一日四餐寻味动线 */}
-      <section
-        id="ov-day-route"
-        className="overview-section"
-        aria-label="十二时辰一日四餐寻味指南"
-        data-testid="city-day-route"
-      >
-        <div className="section-head-bar">
-          <div>
-            <span className="section-tag">12-SHICHEN CULINARY ITINERARY · 一日四餐</span>
-            <h3>一、{pack.name}十二时辰 · 一日四餐寻味动线</h3>
-          </div>
-          <p className="section-sub">
-            从清晨第一碗热汤碳水、午间正席大菜、午后非遗茶点到深夜烟火夜市的地道吃法
-          </p>
-        </div>
-
-        <div className="day-route-timeline">
-          {dayRouteStops.map((stop, idx) => {
-            const card = stop.matchedCard;
-            const isTasted = card ? tastedDishSet.has(card.id) : false;
-            return (
-              <article key={`${stop.meal}-${idx}`} className="day-route-card">
-                <div className="drc-time-badge">
-                  <span className="drc-meal">{stop.meal}</span>
-                  <strong className="drc-clock">{stop.time}</strong>
-                </div>
-
-                {card && (
-                  <div
-                    className="drc-photo"
-                    onClick={() => onSelectCard(card.category, card.id)}
-                  >
-                    <img
-                      src={assetUrl(card.photoUrl ?? `/photos/${card.id}.jpg`)}
-                      alt={stop.dishName}
-                      loading="lazy"
-                      onError={(e) => {
-                        e.currentTarget.style.opacity = "0.25";
-                      }}
-                    />
-                  </div>
-                )}
-
-                <div className="drc-body">
-                  <span className="drc-title-kicker">{stop.title}</span>
-                  <div className="drc-dish-row">
-                    <h4>{stop.dishName}</h4>
-                    <span className="drc-shop">🏮 {stop.shopName}</span>
-                  </div>
-                  <p className="drc-desc">{stop.desc}</p>
-                  {card && (
-                    <div className="drc-actions">
-                      <button
-                        type="button"
-                        className={`btn-checkin-tasted${isTasted ? " on" : ""}`}
-                        onClick={() => toggleTasted(dishCardToRecord(card, pack))}
-                      >
-                        {isTasted ? "✓ 已吃过" : "+ 吃过"}
-                      </button>
-                      <button
-                        type="button"
-                        className="btn-jump-dish"
-                        onClick={() => onSelectCard(card.category, card.id)}
-                      >
-                        查看此菜详述 →
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </article>
-            );
-          })}
-        </div>
-      </section>
-
-      {/* 2. 必吃招牌名馔视觉画廊（支持直接打卡与进入卷目） */}
+      {/* 1. 必吃招牌名馔视觉画廊（支持直接打卡与进入卷目） */}
       <section
         id="ov-signature-gallery"
         className="overview-section"
@@ -369,13 +295,34 @@ export function CityFoodOverview({
         <div className="section-head-bar">
           <div>
             <span className="section-tag">SIGNATURE CULINARY GALLERY</span>
-            <h3>二、{pack.name}必吃名馔与非遗风味画廊</h3>
+            <h3>
+              一、{pack.name}必吃招牌名馔与非遗风味画廊（共 {signatureCards.length} 道代表作）
+            </h3>
           </div>
           <p className="section-sub">点击菜品可进入对应卷目详读行家吃法与百年老店</p>
         </div>
 
+        <div
+          className="ov-signature-filter-bar topic-sg-pills"
+          role="tablist"
+          aria-label="必吃招牌品类筛选"
+        >
+          {signatureFilterOptions.map((opt) => (
+            <button
+              key={opt.id}
+              type="button"
+              role="tab"
+              aria-selected={sigFilter === opt.id}
+              className={`sfcb-pill${sigFilter === opt.id ? " on" : ""}`}
+              onClick={() => setSigFilter(opt.id)}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+
         <div className="ov-signature-cards-grid">
-          {signatureCards.map(({ card, volumeIndex, volumeTitle }) => {
+          {filteredSignatureCards.map(({ card, volumeIndex, volumeTitle }) => {
             const isTasted = tastedDishSet.has(card.id);
             const isWish = wishlistDishSet.has(card.id);
             const catMeta = FOOD_VOLUME_META[card.category];
@@ -442,6 +389,57 @@ export function CityFoodOverview({
                   </div>
                 </div>
               </article>
+            );
+          })}
+        </div>
+      </section>
+
+      {/* 2. 五大食单分卷全景导读 */}
+      <section id="ov-volumes" className="overview-section" aria-label="五大食单分卷导读">
+        <div className="section-head-bar">
+          <div>
+            <span className="section-tag">FIVE CULINARY VOLUMES</span>
+            <h3>二、开始翻阅：《{pack.name}》五卷完整风味食单</h3>
+          </div>
+          <p className="section-sub">
+            涵盖镇桌大菜、街头小吃、粉面碳水、道地风物与寻味老字号五大维度
+          </p>
+        </div>
+
+        <div className="overview-volume-cards">
+          {pack.volumes.map((v) => {
+            const vMeta = FOOD_VOLUME_META[v.id];
+            const tastedCount = v.cards.filter((c) => tastedDishSet.has(c.id)).length;
+            return (
+              <button
+                key={v.id}
+                type="button"
+                className="overview-vol-card"
+                data-testid={`overview-goto-${v.id}`}
+                onClick={() => onSelectVolume(v.id)}
+              >
+                <div className="overview-vol-top">
+                  <span
+                    className="overview-vol-idx"
+                    style={{ background: vMeta.badgeColor }}
+                  >
+                    {vMeta.icon} {v.index}
+                  </span>
+                  <span className="overview-vol-count">
+                    {v.cards.length} 道词条 · 已尝 {tastedCount}
+                  </span>
+                </div>
+                <strong>{v.title}</strong>
+                <small>{v.subtitle}</small>
+                <p>{v.lede}</p>
+                <div className="overview-vol-dishes">
+                  {v.cards.map((c) => (
+                    <span key={c.id} className="ov-vol-dish-tag">
+                      {c.title}
+                    </span>
+                  ))}
+                </div>
+              </button>
             );
           })}
         </div>
@@ -557,193 +555,81 @@ export function CityFoodOverview({
         </div>
       </section>
 
-      {/* 4. 五大食单分卷全景导读 */}
-      <section id="ov-volumes" className="overview-section" aria-label="五大食单分卷导读">
+      {/* 4. 十二时辰 · 一日四餐寻味动线 */}
+      <section
+        id="ov-day-route"
+        className="overview-section"
+        aria-label="十二时辰一日四餐寻味指南"
+        data-testid="city-day-route"
+      >
         <div className="section-head-bar">
           <div>
-            <span className="section-tag">FIVE CULINARY VOLUMES</span>
-            <h3>四、开始翻阅：《{pack.name}》五卷完整风味食单</h3>
+            <span className="section-tag">12-SHICHEN CULINARY ITINERARY · 一日四餐</span>
+            <h3>四、{pack.name}十二时辰 · 一日四餐寻味动线</h3>
           </div>
           <p className="section-sub">
-            涵盖镇桌大菜、街头小吃、粉面碳水、道地风物与寻味老字号五大维度
+            从清晨第一碗热汤碳水、午间正席大菜、午后非遗茶点到深夜烟火夜市的地道吃法
           </p>
         </div>
 
-        <div className="overview-volume-cards">
-          {pack.volumes.map((v) => {
-            const vMeta = FOOD_VOLUME_META[v.id];
-            const tastedCount = v.cards.filter((c) => tastedDishSet.has(c.id)).length;
+        <div className="day-route-timeline">
+          {dayRouteStops.map((stop, idx) => {
+            const card = stop.matchedCard;
+            const isTasted = card ? tastedDishSet.has(card.id) : false;
             return (
-              <button
-                key={v.id}
-                type="button"
-                className="overview-vol-card"
-                data-testid={`overview-goto-${v.id}`}
-                onClick={() => onSelectVolume(v.id)}
-              >
-                <div className="overview-vol-top">
-                  <span
-                    className="overview-vol-idx"
-                    style={{ background: vMeta.badgeColor }}
+              <article key={`${stop.meal}-${idx}`} className="day-route-card">
+                <div className="drc-time-badge">
+                  <span className="drc-meal">{stop.meal}</span>
+                  <strong className="drc-clock">{stop.time}</strong>
+                </div>
+
+                {card && (
+                  <div
+                    className="drc-photo"
+                    onClick={() => onSelectCard(card.category, card.id)}
                   >
-                    {vMeta.icon} {v.index}
-                  </span>
-                  <span className="overview-vol-count">
-                    {v.cards.length} 道词条 · 已尝 {tastedCount}
-                  </span>
-                </div>
-                <strong>{v.title}</strong>
-                <small>{v.subtitle}</small>
-                <p>{v.lede}</p>
-                <div className="overview-vol-dishes">
-                  {v.cards.map((c) => (
-                    <span key={c.id} className="ov-vol-dish-tag">
-                      {c.title}
-                    </span>
-                  ))}
-                </div>
-              </button>
-            );
-          })}
-        </div>
-      </section>
-
-      {/* 5. 双城风味 PK 对比台 */}
-      {pkCity && (
-        <section
-          id="ov-city-pk"
-          className="overview-section"
-          aria-label="双城风味PK对比台"
-          data-testid="city-flavor-pk"
-        >
-          <div className="section-head-bar">
-            <div>
-              <span className="section-tag">TWO-CITY FLAVOR COMPARATOR · 双城寻味对决</span>
-              <h3>
-                五、⚖️ 双城风味 PK 对比：《{pack.name}》 vs 《{pkCity.name}》
-              </h3>
-            </div>
-            <div className="pk-selector-toolbar">
-              <span>选择对比城市：</span>
-              <select
-                value={pkCity.id}
-                onChange={(e) => setPkCityId(e.target.value)}
-                className="pk-city-select"
-                aria-label="选择PK对比城市"
-              >
-                {allCities
-                  .filter((c) => c.id !== pack.id)
-                  .map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.provinceLabel.slice(0, 2)} · {c.name}（{c.cuisineTag}）
-                    </option>
-                  ))}
-              </select>
-            </div>
-          </div>
-
-          {/* 快捷对比对手胶囊 */}
-          <div className="pk-quick-rivals">
-            <span>热门风味对决：</span>
-            {quickPkCandidates.map((cand) => (
-              <button
-                key={cand.id}
-                type="button"
-                className={`pk-rival-chip${cand.id === pkCity.id ? " on" : ""}`}
-                onClick={() => setPkCityId(cand.id)}
-              >
-                vs {cand.name}
-              </button>
-            ))}
-          </div>
-
-          <div className="pk-comparison-grid">
-            {[pack, pkCity].map((cityItem, idx) => {
-              const dacaiNames =
-                cityItem.volumes
-                  .find((v) => v.id === "dacai")
-                  ?.cards.slice(0, 3)
-                  .map((c) => c.title)
-                  .join("、") ?? cityItem.signatureDishes.slice(0, 3).join("、");
-              const xiaochiNames =
-                cityItem.volumes
-                  .find((v) => v.id === "xiaochi")
-                  ?.cards.slice(0, 3)
-                  .map((c) => c.title)
-                  .join("、") ?? "传统街巷小吃";
-              const zhushiNames =
-                cityItem.volumes
-                  .find((v) => v.id === "zhushi")
-                  ?.cards.slice(0, 3)
-                  .map((c) => c.title)
-                  .join("、") ?? "道地粉面主食";
-              const topPhoto =
-                cityItem.volumes[0]?.cards[0]?.photoUrl ??
-                `/photos/${cityItem.volumes[0]?.cards[0]?.id ?? "chengdu-mapo"}.jpg`;
-
-              return (
-                <div
-                  key={cityItem.id}
-                  className={`pk-city-column${idx === 0 ? " is-home-city" : " is-rival-city"}`}
-                >
-                  <div className="pk-col-banner">
                     <img
-                      src={assetUrl(topPhoto)}
-                      alt={cityItem.name}
+                      src={assetUrl(card.photoUrl ?? `/photos/${card.id}.jpg`)}
+                      alt={stop.dishName}
                       loading="lazy"
                       onError={(e) => {
                         e.currentTarget.style.opacity = "0.25";
                       }}
                     />
-                    <div className="pk-col-banner-shade" />
-                    <div className="pk-col-banner-text">
-                      <span className="pk-col-tag">
-                        {idx === 0 ? "当前主场城市" : "对决客场城市"} · {cityItem.provinceLabel}
-                      </span>
-                      <h4>
-                        {cityItem.name} · {cityItem.cuisineTag}
-                      </h4>
-                    </div>
                   </div>
+                )}
 
-                  <div className="pk-metrics-list">
-                    <div className="pk-metric-row">
-                      <span>主导味型</span>
-                      <strong>{cityItem.dominantFlavor}</strong>
-                    </div>
-                    <div className="pk-metric-row">
-                      <span>碳水谱系</span>
-                      <strong>{cityItem.stapleType}</strong>
-                    </div>
-                    <div className="pk-metric-row">
-                      <span>🍲 镇桌大菜代表</span>
-                      <strong>{dacaiNames}</strong>
-                    </div>
-                    <div className="pk-metric-row">
-                      <span>🥟 街头小吃代表</span>
-                      <strong>{xiaochiNames}</strong>
-                    </div>
-                    <div className="pk-metric-row">
-                      <span>🍜 粉面碳水代表</span>
-                      <strong>{zhushiNames}</strong>
-                    </div>
+                <div className="drc-body">
+                  <span className="drc-title-kicker">{stop.title}</span>
+                  <div className="drc-dish-row">
+                    <h4>{stop.dishName}</h4>
+                    <span className="drc-shop">🏮 {stop.shopName}</span>
                   </div>
-
-                  {idx === 1 && (
-                    <button
-                      type="button"
-                      className="btn-primary pk-goto-btn"
-                      onClick={() => onSelectCity(cityItem.id)}
-                    >
-                      进入《{cityItem.name}》五卷风味食单 →
-                    </button>
+                  <p className="drc-desc">{stop.desc}</p>
+                  {card && (
+                    <div className="drc-actions">
+                      <button
+                        type="button"
+                        className={`btn-checkin-tasted${isTasted ? " on" : ""}`}
+                        onClick={() => toggleTasted(dishCardToRecord(card, pack))}
+                      >
+                        {isTasted ? "✓ 已吃过" : "+ 吃过"}
+                      </button>
+                      <button
+                        type="button"
+                        className="btn-jump-dish"
+                        onClick={() => onSelectCard(card.category, card.id)}
+                      >
+                        查看此菜详述 →
+                      </button>
+                    </div>
                   )}
                 </div>
-              );
-            })}
-          </div>
-        </section>
-      )}
+              </article>
+            );
+          })}
+        </div>
+      </section>
     </article>
   );
 }
