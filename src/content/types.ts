@@ -83,6 +83,10 @@ export interface DishCard {
   body: string;
   /** 兼容别名（可选） */
   storyAndCraft?: string;
+  /** 行家吃法口诀（如 "趁热先挑衣吸卤，再佐蒜泥香醋"） */
+  eatingTip?: string;
+  /** 黄金搭配推荐（如 "配一盅普洱菊花茶或冰镇酸梅汤解腻"） */
+  pairingTip?: string;
   /** 2–3 家代表老字号或寻味名店/老街 */
   famousSpots: FamousSpot[];
   /** WGS84 经纬度坐标 [lng, lat] */
@@ -124,12 +128,22 @@ export interface CulinaryCausalityChain {
   coord: [number, number];
 }
 
+export interface DayRouteStop {
+  meal: string;      // e.g. "卯辰 · 清晨早点"
+  time: string;      // e.g. "06:30 – 09:00"
+  title: string;     // e.g. "一碗热腾腾的碳水唤醒味蕾"
+  dishName: string;
+  shopName: string;
+  desc: string;
+}
+
 export interface CityFoodOverviewSpec {
   subtitle: string;
   leadParagraphs: string[];
   flavorRadar: FlavorRadarItem[];
   culinaryFacts: CulinaryFactItem[];
-  causalityChains: CulinaryCausalityChain[];
+  dayRoute?: DayRouteStop[];
+  causalityChains?: CulinaryCausalityChain[];
 }
 
 export interface CityFoodPack {
@@ -158,7 +172,10 @@ export type SpecialTopicId =
   | "hotpot-jianghu"
   | "morning-feast"
   | "bbq-nightmarket"
-  | "pastries-sweet-soups";
+  | "pastries-sweet-soups"
+  | "tea-and-wine"
+  | "seasonal-feast"
+  | "heritage-banquets";
 
 export interface TopicFoodItem {
   id: string;

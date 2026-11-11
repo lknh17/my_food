@@ -1,8 +1,9 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { EIGHT_CUISINES_META } from "../content/provincesMeta";
 import {
   FOOD_VOLUME_META,
   type CityFoodPack,
+  type DayRouteStop,
   type DishCard,
   type FoodCategoryId,
 } from "../content/types";
@@ -15,36 +16,80 @@ export interface CityFoodOverviewProps {
   onSelectVolume: (category: FoodCategoryId) => void;
   onSelectCard: (category: FoodCategoryId, cardId: string) => void;
   onSelectCity: (cityId: string) => void;
-  onOpenFoodMap: (category?: FoodCategoryId, cardId?: string) => void;
+  onOpenFoodMap?: (category?: FoodCategoryId, cardId?: string) => void;
 }
 
-interface NeighborCulinaryCity {
-  city: CityFoodPack;
-  distKm: number;
-  dirLabel: string;
-}
+function buildCityDayRoute(pack: CityFoodPack): (DayRouteStop & { matchedCard?: DishCard })[] {
+  const allCards = pack.volumes.flatMap((v) => v.cards);
+  const zhushiVol = pack.volumes.find((v) => v.id === "zhushi");
+  const dacaiVol = pack.volumes.find((v) => v.id === "dacai");
+  const xiaochiVol = pack.volumes.find((v) => v.id === "xiaochi");
+  const shijieVol = pack.volumes.find((v) => v.id === "shijie");
 
-function computeNearbyCities(
-  pack: CityFoodPack,
-  allCities: CityFoodPack[],
-  count = 6,
-): NeighborCulinaryCity[] {
-  const [lng1, lat1] = pack.center;
-  const cosLat = Math.cos((lat1 * Math.PI) / 180);
-  const dirs = ["正北", "东北", "正东", "东南", "正南", "西南", "正西", "西北"];
-
-  const out: NeighborCulinaryCity[] = [];
-  for (const other of allCities) {
-    if (other.id === pack.id) continue;
-    const dx = (other.center[0] - lng1) * cosLat * 111.32;
-    const dy = (other.center[1] - lat1) * 111.32;
-    const distKm = Math.max(10, Math.round(Math.hypot(dx, dy)));
-    const deg = ((Math.atan2(dx, dy) * 180) / Math.PI + 360) % 360;
-    const dirLabel = dirs[Math.round(deg / 45) % 8];
-    out.push({ city: other, distKm, dirLabel });
+  if (pack.overview.dayRoute && pack.overview.dayRoute.length > 0) {
+    return pack.overview.dayRoute.map((stop) => {
+      const matchedCard = allCards.find(
+        (c) => c.title.includes(stop.dishName) || stop.dishName.includes(c.title),
+      );
+      return { ...stop, matchedCard };
+    });
   }
-  out.sort((a, b) => a.distKm - b.distKm);
-  return out.slice(0, count);
+
+  const morningCard = zhushiVol?.cards[0] ?? xiaochiVol?.cards[0] ?? allCards[0];
+  const noonCard = dacaiVol?.cards[0] ?? allCards[1] ?? allCards[0];
+  const afternoonCard = xiaochiVol?.cards[0] ?? zhushiVol?.cards[1] ?? allCards[2] ?? allCards[0];
+  const nightCard =
+    dacaiVol?.cards[1] ?? xiaochiVol?.cards[1] ?? shijieVol?.cards[0] ?? allCards[3] ?? allCards[0];
+
+  return [
+    {
+      meal: "卯辰 · 清晨过早",
+      time: "06:30 – 09:00",
+      title: `一碗热气腾腾的${pack.name}头汤碳水唤醒味蕾`,
+      dishName: morningCard?.title ?? pack.signatureDishes[0] ?? "传统早点",
+      shopName: morningCard?.famousSpots[0]?.name ?? `${pack.name}老街早点铺`,
+      desc:
+        morningCard?.tagline ??
+        `清晨钻进${pack.name}街头老巷，用一碗骨汤醇厚、火候地道的早点开启一日寻味。`,
+      matchedCard: morningCard,
+    },
+    {
+      meal: "午时 · 正席大菜",
+      time: "11:30 – 14:00",
+      title: `登堂入室品鉴${pack.cuisineTag}镇桌功夫硬菜`,
+      dishName: noonCard?.title ?? pack.signatureDishes[0] ?? "招牌大菜",
+      shopName: noonCard?.famousSpots[0]?.name ?? `${pack.name}百年老字号酒楼`,
+      desc:
+        noonCard?.tagline ??
+        `午间落座百年名店，细品${pack.dominantFlavor}的看家火候与道地主料。`,
+      matchedCard: noonCard,
+    },
+    {
+      meal: "申时 · 午后茶点",
+      time: "15:00 – 17:30",
+      title: "走街串巷寻觅非遗手作小食与甜品",
+      dishName: afternoonCard?.title ?? pack.signatureDishes[1] ?? "市井小吃",
+      shopName: afternoonCard?.famousSpots[0]?.name ?? `${pack.name}传统小吃老铺`,
+      desc:
+        afternoonCard?.tagline ??
+        `午后漫步老城街巷，尝一口酥脆或软糯的市井点心，感受最松弛的在地生活。`,
+      matchedCard: afternoonCard,
+    },
+    {
+      meal: "戌亥 · 夜市宵夜",
+      time: "20:00 – 23:30",
+      title: "华灯初上赴一场热辣滚烫的市井夜宴",
+      dishName: nightCard?.title ?? pack.signatureDishes[2] ?? "夜市招牌",
+      shopName:
+        shijieVol?.cards[0]?.title ??
+        nightCard?.famousSpots[0]?.name ??
+        `${pack.name}老街夜市`,
+      desc:
+        nightCard?.tagline ??
+        `夜幕降临，在鼎沸人声与炭火锅气中收尾${pack.name}十二时辰的味觉高潮。`,
+      matchedCard: nightCard,
+    },
+  ];
 }
 
 export function CityFoodOverview({
@@ -53,16 +98,29 @@ export function CityFoodOverview({
   onSelectVolume,
   onSelectCard,
   onSelectCity,
-  onOpenFoodMap,
 }: CityFoodOverviewProps) {
   const { overview } = pack;
   const { tastedDishSet, wishlistDishSet, toggleTasted, toggleWishlist } = useFoodFootprints();
 
-  const cuisineMeta = EIGHT_CUISINES_META[pack.eightCuisine] ?? EIGHT_CUISINES_META.local;
-  const neighbors = useMemo(
-    () => computeNearbyCities(pack, allCities, 6),
-    [pack, allCities],
+  const defaultPkCityId = useMemo(() => {
+    const sameProv = allCities.find((c) => c.id !== pack.id && c.province === pack.province);
+    if (sameProv) return sameProv.id;
+    const rivals = ["chengdu", "guangzhou", "beijing", "yangzhou", "chongqing", "xian"];
+    const picked = rivals.find((id) => id !== pack.id && allCities.some((c) => c.id === id));
+    return picked ?? allCities.find((c) => c.id !== pack.id)?.id ?? pack.id;
+  }, [pack, allCities]);
+
+  const [pkCityId, setPkCityId] = useState<string>(defaultPkCityId);
+
+  const pkCity = useMemo(
+    () =>
+      allCities.find((c) => c.id === pkCityId && c.id !== pack.id) ??
+      allCities.find((c) => c.id === defaultPkCityId) ??
+      allCities[0],
+    [allCities, pkCityId, pack.id, defaultPkCityId],
   );
+
+  const cuisineMeta = EIGHT_CUISINES_META[pack.eightCuisine] ?? EIGHT_CUISINES_META.local;
 
   const allCityCards = useMemo(() => {
     const list: { card: DishCard; volumeTitle: string; volumeIndex: string }[] = [];
@@ -75,21 +133,24 @@ export function CityFoodOverview({
   }, [pack]);
 
   const signatureCards = useMemo(() => {
-    // Pick top cards from volumes (up to 6)
     const picked: { card: DishCard; volumeTitle: string; volumeIndex: string }[] = [];
     for (const v of pack.volumes) {
+      if (v.id === "shijie") continue;
       if (v.cards[0]) {
         picked.push({ card: v.cards[0], volumeTitle: v.title, volumeIndex: v.index });
       }
     }
     for (const v of pack.volumes) {
       if (picked.length >= 6) break;
+      if (v.id === "shijie") continue;
       if (v.cards[1]) {
         picked.push({ card: v.cards[1], volumeTitle: v.title, volumeIndex: v.index });
       }
     }
     return picked.slice(0, 6);
   }, [pack]);
+
+  const dayRouteStops = useMemo(() => buildCityDayRoute(pack), [pack]);
 
   // 6-axis flavor radar SVG polygon points
   const radarItems = useMemo(() => {
@@ -144,6 +205,27 @@ export function CityFoodOverview({
     return { cx, cy, axes, polygonPoints, rings };
   }, [radarItems]);
 
+  // Quick rival cities for PK comparison
+  const quickPkCandidates = useMemo(() => {
+    const out: CityFoodPack[] = [];
+    const seen = new Set<string>([pack.id]);
+    for (const c of allCities) {
+      if (c.province === pack.province && !seen.has(c.id)) {
+        out.push(c);
+        seen.add(c.id);
+      }
+    }
+    const famousIds = ["chengdu", "guangzhou", "beijing", "yangzhou", "chongqing", "xian", "changsha", "shanghai"];
+    for (const fid of famousIds) {
+      const found = allCities.find((c) => c.id === fid);
+      if (found && !seen.has(found.id)) {
+        out.push(found);
+        seen.add(found.id);
+      }
+    }
+    return out.slice(0, 8);
+  }, [pack, allCities]);
+
   return (
     <article className="essay city-food-overview single-column-essay" data-testid="city-food-overview">
       {/* 0. 城市饮食风土总论开篇 */}
@@ -159,7 +241,7 @@ export function CityFoodOverview({
             </span>
           </div>
           <span className="overview-stats-pill">
-            5 卷食单 · {allCityCards.length} 道代表名馔与老店坐标
+            5 卷食单 · {allCityCards.length} 道代表名馔与寻味老字号
           </span>
         </div>
 
@@ -170,7 +252,7 @@ export function CityFoodOverview({
 
         {/* 招牌菜标签速览 */}
         <div className="ov-signature-pills">
-          <span className="ov-sig-label">🥢 镇城必吃名片：</span>
+          <span className="ov-sig-label">🥢 镇城必吃名片（点击直达该菜）：</span>
           {pack.signatureDishes.map((dishName) => {
             const matched = allCityCards.find(
               (c) => c.card.title.includes(dishName) || dishName.includes(c.card.title),
@@ -194,7 +276,7 @@ export function CityFoodOverview({
           })}
         </div>
 
-        {/* 深度饮食地理导语段落 */}
+        {/* 深度饮食导语段落 */}
         <div className="ov-terroir-essay">
           {overview.leadParagraphs.map((para, idx) => (
             <p key={idx}>{para}</p>
@@ -202,19 +284,182 @@ export function CityFoodOverview({
         </div>
       </header>
 
-      {/* 1. 六轴味型雷达图 + 六维饮食核心档案 */}
+      {/* 1. 十二时辰 · 一日四餐寻味动线 */}
       <section
-        id="ov-radar-facts"
+        id="ov-day-route"
         className="overview-section"
-        aria-label="六轴味型雷达与饮食地理核心档案"
+        aria-label="十二时辰一日四餐寻味指南"
+        data-testid="city-day-route"
       >
         <div className="section-head-bar">
           <div>
-            <span className="section-tag">FLAVOR RADAR & TERROIR PROFILE</span>
-            <h3>一、{pack.name}六轴味型图谱与饮食地理核心档案</h3>
+            <span className="section-tag">12-SHICHEN CULINARY ITINERARY · 一日四餐</span>
+            <h3>一、{pack.name}十二时辰 · 一日四餐寻味动线</h3>
           </div>
           <p className="section-sub">
-            从山川气候、道地物产、核心调味到代表老字号的风味基因解码
+            从清晨第一碗热汤碳水、午间正席大菜、午后非遗茶点到深夜烟火夜市的地道吃法
+          </p>
+        </div>
+
+        <div className="day-route-timeline">
+          {dayRouteStops.map((stop, idx) => {
+            const card = stop.matchedCard;
+            const isTasted = card ? tastedDishSet.has(card.id) : false;
+            return (
+              <article key={`${stop.meal}-${idx}`} className="day-route-card">
+                <div className="drc-time-badge">
+                  <span className="drc-meal">{stop.meal}</span>
+                  <strong className="drc-clock">{stop.time}</strong>
+                </div>
+
+                {card && (
+                  <div
+                    className="drc-photo"
+                    onClick={() => onSelectCard(card.category, card.id)}
+                  >
+                    <img
+                      src={assetUrl(card.photoUrl ?? `/photos/${card.id}.jpg`)}
+                      alt={stop.dishName}
+                      loading="lazy"
+                      onError={(e) => {
+                        e.currentTarget.style.opacity = "0.25";
+                      }}
+                    />
+                  </div>
+                )}
+
+                <div className="drc-body">
+                  <span className="drc-title-kicker">{stop.title}</span>
+                  <div className="drc-dish-row">
+                    <h4>{stop.dishName}</h4>
+                    <span className="drc-shop">🏮 {stop.shopName}</span>
+                  </div>
+                  <p className="drc-desc">{stop.desc}</p>
+                  {card && (
+                    <div className="drc-actions">
+                      <button
+                        type="button"
+                        className={`btn-checkin-tasted${isTasted ? " on" : ""}`}
+                        onClick={() => toggleTasted(dishCardToRecord(card, pack))}
+                      >
+                        {isTasted ? "✓ 已吃过" : "+ 吃过"}
+                      </button>
+                      <button
+                        type="button"
+                        className="btn-jump-dish"
+                        onClick={() => onSelectCard(card.category, card.id)}
+                      >
+                        查看此菜详述 →
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      </section>
+
+      {/* 2. 必吃招牌名馔视觉画廊（支持直接打卡与进入卷目） */}
+      <section
+        id="ov-signature-gallery"
+        className="overview-section"
+        aria-label="本城必吃招牌美食画廊"
+      >
+        <div className="section-head-bar">
+          <div>
+            <span className="section-tag">SIGNATURE CULINARY GALLERY</span>
+            <h3>二、{pack.name}必吃名馔与非遗风味画廊</h3>
+          </div>
+          <p className="section-sub">点击菜品可进入对应卷目详读行家吃法与百年老店</p>
+        </div>
+
+        <div className="ov-signature-cards-grid">
+          {signatureCards.map(({ card, volumeIndex, volumeTitle }) => {
+            const isTasted = tastedDishSet.has(card.id);
+            const isWish = wishlistDishSet.has(card.id);
+            const catMeta = FOOD_VOLUME_META[card.category];
+            return (
+              <article
+                key={card.id}
+                className={`ov-sig-dish-card${isTasted ? " is-tasted" : ""}`}
+                data-testid={`ov-sig-card-${card.id}`}
+              >
+                <div
+                  className="ov-sig-media"
+                  onClick={() => onSelectCard(card.category, card.id)}
+                >
+                  <img
+                    src={assetUrl(card.photoUrl ?? `/photos/${card.id}.jpg`)}
+                    alt={card.title}
+                    loading="lazy"
+                    onError={(e) => {
+                      e.currentTarget.style.opacity = "0.25";
+                    }}
+                  />
+                  <span
+                    className="ov-sig-vol-badge"
+                    style={{ background: catMeta.badgeColor }}
+                  >
+                    {catMeta.icon} {volumeIndex}·{volumeTitle}
+                  </span>
+                  <span className="ov-sig-flavor-badge">{card.flavorProfile}</span>
+                </div>
+
+                <div className="ov-sig-body">
+                  <div className="ov-sig-head">
+                    <h4>{card.title}</h4>
+                    <span>{card.cuisineStyle}</span>
+                  </div>
+                  <p>{card.tagline}</p>
+                  {card.famousSpots[0] && (
+                    <small className="ov-sig-spot">
+                      🏮 代表老店：{card.famousSpots[0].name}（{card.famousSpots[0].addressHint}）
+                    </small>
+                  )}
+                  <div className="ov-sig-actions">
+                    <button
+                      type="button"
+                      className={`btn-checkin-tasted${isTasted ? " on" : ""}`}
+                      onClick={() => toggleTasted(dishCardToRecord(card, pack))}
+                    >
+                      {isTasted ? "✓ 已吃过" : "🥢 吃过"}
+                    </button>
+                    <button
+                      type="button"
+                      className={`btn-checkin-wish${isWish ? " on" : ""}`}
+                      onClick={() => toggleWishlist(dishCardToRecord(card, pack))}
+                    >
+                      {isWish ? "★ 已想吃" : "♡ 想吃"}
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-jump-dish"
+                      onClick={() => onSelectCard(card.category, card.id)}
+                    >
+                      品鉴详述 →
+                    </button>
+                  </div>
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      </section>
+
+      {/* 3. 六轴味型雷达图 + 六维饮食核心档案 */}
+      <section
+        id="ov-radar-facts"
+        className="overview-section"
+        aria-label="六轴味型雷达与饮食核心档案"
+      >
+        <div className="section-head-bar">
+          <div>
+            <span className="section-tag">FLAVOR RADAR & CULINARY PROFILE</span>
+            <h3>三、{pack.name}六维味型图谱与风味档案</h3>
+          </div>
+          <p className="section-sub">
+            从道地物产、核心调味到代表名馔的味觉基因解码
           </p>
         </div>
 
@@ -296,160 +541,19 @@ export function CityFoodOverview({
 
           {/* 右侧：6 维饮食核心档案 */}
           <div className="geo-facts-grid culinary-facts-grid">
-            {overview.culinaryFacts.map((fact) => (
-              <div key={fact.label} className="geo-fact-card">
-                <span className="geo-fact-label">{fact.label}</span>
-                <strong className="geo-fact-value">{fact.value}</strong>
-                <p className="geo-fact-detail">{fact.detail}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* 2. 必吃招牌名馔视觉画廊（支持直接打卡与进入卷目） */}
-      <section
-        id="ov-signature-gallery"
-        className="overview-section"
-        aria-label="本城必吃招牌美食画廊"
-      >
-        <div className="section-head-bar">
-          <div>
-            <span className="section-tag">SIGNATURE CULINARY GALLERY</span>
-            <h3>二、{pack.name}必吃名馔与非遗风味画廊</h3>
-          </div>
-          <div className="section-actions">
-            <button
-              type="button"
-              className="btn-primary"
-              onClick={() => onOpenFoodMap()}
-            >
-              📍 在全屏老字号寻味地图查看 ↗
-            </button>
-          </div>
-        </div>
-
-        <div className="ov-signature-cards-grid">
-          {signatureCards.map(({ card, volumeIndex, volumeTitle }) => {
-            const isTasted = tastedDishSet.has(card.id);
-            const isWish = wishlistDishSet.has(card.id);
-            const catMeta = FOOD_VOLUME_META[card.category];
-            return (
-              <article
-                key={card.id}
-                className={`ov-sig-dish-card${isTasted ? " is-tasted" : ""}`}
-                data-testid={`ov-sig-card-${card.id}`}
-              >
-                <div
-                  className="ov-sig-media"
-                  onClick={() => onSelectCard(card.category, card.id)}
-                >
-                  <img
-                    src={assetUrl(card.photoUrl ?? `/photos/${card.id}.jpg`)}
-                    alt={card.title}
-                    loading="lazy"
-                    onError={(e) => {
-                      e.currentTarget.style.opacity = "0.25";
-                    }}
-                  />
-                  <span
-                    className="ov-sig-vol-badge"
-                    style={{ background: catMeta.badgeColor }}
-                  >
-                    {catMeta.icon} {volumeIndex}·{volumeTitle}
-                  </span>
-                  <span className="ov-sig-flavor-badge">{card.flavorProfile}</span>
+            {overview.culinaryFacts.map((fact) => {
+              const displayVal =
+                EIGHT_CUISINES_META[fact.value as keyof typeof EIGHT_CUISINES_META]?.shortLabel ??
+                fact.value;
+              return (
+                <div key={fact.label} className="geo-fact-card">
+                  <span className="geo-fact-label">{fact.label}</span>
+                  <strong className="geo-fact-value">{displayVal}</strong>
+                  <p className="geo-fact-detail">{fact.detail}</p>
                 </div>
-
-                <div className="ov-sig-body">
-                  <div className="ov-sig-head">
-                    <h4>{card.title}</h4>
-                    <span>{card.cuisineStyle}</span>
-                  </div>
-                  <p>{card.tagline}</p>
-                  {card.famousSpots[0] && (
-                    <small className="ov-sig-spot">
-                      🏮 代表名店：{card.famousSpots[0].name}（{card.famousSpots[0].addressHint}）
-                    </small>
-                  )}
-                  <div className="ov-sig-actions">
-                    <button
-                      type="button"
-                      className={`btn-checkin-tasted${isTasted ? " on" : ""}`}
-                      onClick={() => toggleTasted(dishCardToRecord(card, pack))}
-                    >
-                      {isTasted ? "✓ 已吃过" : "🥢 吃过"}
-                    </button>
-                    <button
-                      type="button"
-                      className={`btn-checkin-wish${isWish ? " on" : ""}`}
-                      onClick={() => toggleWishlist(dishCardToRecord(card, pack))}
-                    >
-                      {isWish ? "★ 已种草" : "♡ 想吃"}
-                    </button>
-                    <button
-                      type="button"
-                      className="btn-jump-dish"
-                      onClick={() => onSelectCard(card.category, card.id)}
-                    >
-                      品鉴详述 →
-                    </button>
-                  </div>
-                </div>
-              </article>
-            );
-          })}
-        </div>
-      </section>
-
-      {/* 3. 决定本城味型的三大水土—风味因果链 */}
-      <section
-        id="ov-causality"
-        className="overview-section"
-        aria-label="地理水土到风味演进因果链"
-      >
-        <div className="section-head-bar">
-          <div>
-            <span className="section-tag">GEOGRAPHY-TO-FLAVOR CAUSALITY</span>
-            <h3>三、决定{pack.name}味道基因的三大风土因果链</h3>
+              );
+            })}
           </div>
-          <p className="section-sub">
-            每一道地方名菜背后，都是山川气候、物产通道与商帮移民的必然结果
-          </p>
-        </div>
-
-        <div className="causality-list">
-          {overview.causalityChains.map((chain) => (
-            <article key={chain.no} className="causality-card">
-              <div className="causality-no">{chain.no}</div>
-              <div className="causality-content">
-                <div className="causality-head">
-                  <h4>{chain.title}</h4>
-                  <span className="causality-coord">
-                    寻味坐标：{chain.spotName}（{chain.coord[1].toFixed(3)}°N,{" "}
-                    {chain.coord[0].toFixed(3)}°E）
-                  </span>
-                </div>
-                <p className="causality-detail-para">{chain.detail}</p>
-                <div className="causality-actions">
-                  <button
-                    type="button"
-                    className="btn-link"
-                    onClick={() => onSelectVolume("dacai")}
-                  >
-                    阅读五卷食单详述 →
-                  </button>
-                  <button
-                    type="button"
-                    className="btn-link-muted"
-                    onClick={() => onOpenFoodMap()}
-                  >
-                    在寻味地图定位 {chain.spotName} ↗
-                  </button>
-                </div>
-              </div>
-            </article>
-          ))}
         </div>
       </section>
 
@@ -504,48 +608,139 @@ export function CityFoodOverview({
         </div>
       </section>
 
-      {/* 5. 周边邻城风味对比与寻味圈 */}
-      {neighbors.length > 0 && (
+      {/* 5. 双城风味 PK 对比台 */}
+      {pkCity && (
         <section
-          id="ov-neighbors"
+          id="ov-city-pk"
           className="overview-section"
-          aria-label="周边邻城风味对比"
+          aria-label="双城风味PK对比台"
+          data-testid="city-flavor-pk"
         >
           <div className="section-head-bar">
             <div>
-              <span className="section-tag">REGIONAL FLAVOR NEIGHBORS</span>
-              <h3>五、{pack.name}周边美食名城风味圈对比</h3>
+              <span className="section-tag">TWO-CITY FLAVOR COMPARATOR · 双城寻味对决</span>
+              <h3>
+                五、⚖️ 双城风味 PK 对比：《{pack.name}》 vs 《{pkCity.name}》
+              </h3>
             </div>
-            <p className="section-sub">沿地理走廊延伸寻味，对比相邻城市的味型与碳水谱系</p>
+            <div className="pk-selector-toolbar">
+              <span>选择对比城市：</span>
+              <select
+                value={pkCity.id}
+                onChange={(e) => setPkCityId(e.target.value)}
+                className="pk-city-select"
+                aria-label="选择PK对比城市"
+              >
+                {allCities
+                  .filter((c) => c.id !== pack.id)
+                  .map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.provinceLabel.slice(0, 2)} · {c.name}（{c.cuisineTag}）
+                    </option>
+                  ))}
+              </select>
+            </div>
           </div>
 
-          <div className="nc-cards-grid">
-            {neighbors.map((nb) => (
-              <div key={nb.city.id} className="nc-neighbor-card">
-                <div className="nc-neighbor-top">
-                  <strong>{nb.city.name}</strong>
-                  <span className="nc-dir-badge">
-                    {nb.dirLabel} · {nb.distKm} km
-                  </span>
-                </div>
-                <small>
-                  {nb.city.provinceLabel} · {nb.city.cuisineTag} · {nb.city.dominantFlavor}
-                </small>
-                <p className="nc-neighbor-dishes">
-                  必吃：{nb.city.signatureDishes.slice(0, 3).join("、")}
-                </p>
-                <div className="nc-neighbor-actions">
-                  <button
-                    type="button"
-                    className="btn-link"
-                    data-testid={`neighbor-goto-${nb.city.id}`}
-                    onClick={() => onSelectCity(nb.city.id)}
-                  >
-                    品读《{nb.city.name}》食单 →
-                  </button>
-                </div>
-              </div>
+          {/* 快捷对比对手胶囊 */}
+          <div className="pk-quick-rivals">
+            <span>热门风味对决：</span>
+            {quickPkCandidates.map((cand) => (
+              <button
+                key={cand.id}
+                type="button"
+                className={`pk-rival-chip${cand.id === pkCity.id ? " on" : ""}`}
+                onClick={() => setPkCityId(cand.id)}
+              >
+                vs {cand.name}
+              </button>
             ))}
+          </div>
+
+          <div className="pk-comparison-grid">
+            {[pack, pkCity].map((cityItem, idx) => {
+              const dacaiNames =
+                cityItem.volumes
+                  .find((v) => v.id === "dacai")
+                  ?.cards.slice(0, 3)
+                  .map((c) => c.title)
+                  .join("、") ?? cityItem.signatureDishes.slice(0, 3).join("、");
+              const xiaochiNames =
+                cityItem.volumes
+                  .find((v) => v.id === "xiaochi")
+                  ?.cards.slice(0, 3)
+                  .map((c) => c.title)
+                  .join("、") ?? "传统街巷小吃";
+              const zhushiNames =
+                cityItem.volumes
+                  .find((v) => v.id === "zhushi")
+                  ?.cards.slice(0, 3)
+                  .map((c) => c.title)
+                  .join("、") ?? "道地粉面主食";
+              const topPhoto =
+                cityItem.volumes[0]?.cards[0]?.photoUrl ??
+                `/photos/${cityItem.volumes[0]?.cards[0]?.id ?? "chengdu-mapo"}.jpg`;
+
+              return (
+                <div
+                  key={cityItem.id}
+                  className={`pk-city-column${idx === 0 ? " is-home-city" : " is-rival-city"}`}
+                >
+                  <div className="pk-col-banner">
+                    <img
+                      src={assetUrl(topPhoto)}
+                      alt={cityItem.name}
+                      loading="lazy"
+                      onError={(e) => {
+                        e.currentTarget.style.opacity = "0.25";
+                      }}
+                    />
+                    <div className="pk-col-banner-shade" />
+                    <div className="pk-col-banner-text">
+                      <span className="pk-col-tag">
+                        {idx === 0 ? "当前主场城市" : "对决客场城市"} · {cityItem.provinceLabel}
+                      </span>
+                      <h4>
+                        {cityItem.name} · {cityItem.cuisineTag}
+                      </h4>
+                    </div>
+                  </div>
+
+                  <div className="pk-metrics-list">
+                    <div className="pk-metric-row">
+                      <span>主导味型</span>
+                      <strong>{cityItem.dominantFlavor}</strong>
+                    </div>
+                    <div className="pk-metric-row">
+                      <span>碳水谱系</span>
+                      <strong>{cityItem.stapleType}</strong>
+                    </div>
+                    <div className="pk-metric-row">
+                      <span>🍲 镇桌大菜代表</span>
+                      <strong>{dacaiNames}</strong>
+                    </div>
+                    <div className="pk-metric-row">
+                      <span>🥟 街头小吃代表</span>
+                      <strong>{xiaochiNames}</strong>
+                    </div>
+                    <div className="pk-metric-row">
+                      <span>🍜 粉面碳水代表</span>
+                      <strong>{zhushiNames}</strong>
+                    </div>
+                  </div>
+
+                  {idx === 1 && (
+                    <button
+                      type="button"
+                      className="btn-primary pk-goto-btn"
+                      onClick={() => onSelectCity(cityItem.id)}
+                    >
+                      进入《{cityItem.name}》五卷风味食单 →
+                    </button>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </section>
       )}

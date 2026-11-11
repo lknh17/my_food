@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   FOOD_VOLUME_META,
   type CityFoodPack,
@@ -14,34 +14,35 @@ export interface FoodVolumeEssayProps {
   volume: FoodVolume;
   activeCardId: string | null;
   onSelectCard: (cardId: string) => void;
-  onOpenFoodMap: (category?: FoodCategoryId, cardId?: string) => void;
+  onOpenFoodMap?: (category?: FoodCategoryId, cardId?: string) => void;
 }
 
-const TILE = 256;
-type GuideVisualMode = "street" | "topo" | "satellite";
+function getConnoisseurTips(card: DishCard, city: CityFoodPack): { eatingTip: string; pairingTip: string } {
+  if (card.eatingTip && card.pairingTip) {
+    return { eatingTip: card.eatingTip, pairingTip: card.pairingTip };
+  }
+  const f = card.flavorProfile;
+  let defaultEating = `趁热上桌先闻其香，夹取${card.mainIngredients.split("、")[0] || "主料"}蘸满原汤卤汁细品，层次最佳。`;
+  let defaultPairing = "宜佐一盏温润清茶或本地时令冰饮解腻，风味更显绵长。";
 
-const TILE_URL: Record<GuideVisualMode, (z: number, y: number, x: number) => string> = {
-  street: (z, y, x) => assetUrl(`tiles-cache/street/${z}/${y}/${x}.jpg`),
-  topo: (z, y, x) => assetUrl(`tiles-cache/topo/${z}/${y}/${x}.jpg`),
-  satellite: (z, y, x) => assetUrl(`tiles-cache/satellite/${z}/${y}/${x}.jpg`),
-};
+  if (card.category === "zhushi") {
+    defaultEating = `讲究「面/粉出锅即食」，先喝一口头汤感受本鲜，再将浇头臊子与粉面充分拌匀大口吸食。`;
+    defaultPairing = "绝配卤蛋、拍黄瓜、糖蒜或一碟现炸酥肉，碳水满足感拉满。";
+  } else if (card.category === "xiaochi") {
+    defaultEating = `刚出炉或刚出锅黄金三分钟内口感最妙，外皮酥脆或软糯、内馅滚烫多汁，切勿久放。`;
+    defaultPairing = `搭配${city.name}本地盖碗清茶、冰镇酸梅汤或传统甜酒酿最为合拍。`;
+  } else if (f.includes("麻辣") || f.includes("香辣")) {
+    defaultEating = `红油香气裹挟主料，入口先觉醇香再泛麻感，汤汁拌入热气腾腾的五常白米饭堪称灵魂。`;
+    defaultPairing = "黄金搭档：红糖冰粉、老荫茶或冰镇唯怡豆奶，瞬间抚平燥辣。";
+  } else if (f.includes("鲜") || f.includes("甜")) {
+    defaultEating = `切忌重手加醋加辣掩盖本味，先品一口高汤或酥皮原香，再细嚼嫩滑肉质。`;
+    defaultPairing = "宜配三年陈绍兴温黄酒、明前绿茶或清爽时蔬，衬托河海本鲜。";
+  }
 
-const DIRECT_FALLBACK_URL: Record<GuideVisualMode, (z: number, y: number, x: number) => string> = {
-  street: (z, y, x) =>
-    `https://webrd02.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=8&x=${x}&y=${y}&z=${z}`,
-  topo: (z, y, x) =>
-    z >= 13
-      ? `https://webrd02.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=8&x=${x}&y=${y}&z=${z}`
-      : `https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/${z}/${y}/${x}`,
-  satellite: (z, y, x) => `https://webst02.is.autonavi.com/appmaptile?style=6&x=${x}&y=${y}&z=${z}`,
-};
-
-function worldPx(lng: number, lat: number, zoom: number) {
-  const scale = TILE * 2 ** zoom;
-  const x = ((lng + 180) / 360) * scale;
-  const latRad = (lat * Math.PI) / 180;
-  const y = ((1 - Math.log(Math.tan(latRad) + 1 / Math.cos(latRad)) / Math.PI) / 2) * scale;
-  return { x, y, scale };
+  return {
+    eatingTip: card.eatingTip || defaultEating,
+    pairingTip: card.pairingTip || defaultPairing,
+  };
 }
 
 export function FoodVolumeEssay({
@@ -49,9 +50,7 @@ export function FoodVolumeEssay({
   volume,
   activeCardId,
   onSelectCard,
-  onOpenFoodMap,
 }: FoodVolumeEssayProps) {
-  const mapFrameRef = useRef<HTMLDivElement>(null);
   const {
     tastedDishSet,
     wishlistDishSet,
@@ -61,9 +60,6 @@ export function FoodVolumeEssay({
   } = useFoodFootprints();
 
   const [lightboxCard, setLightboxCard] = useState<DishCard | null>(null);
-  const [mapMode, setMapMode] = useState<GuideVisualMode>("street");
-  const [zoomDelta, setZoomDelta] = useState<number>(0);
-  const [mapSize, setMapSize] = useState({ w: 860, h: 380 });
 
   const volMeta = FOOD_VOLUME_META[volume.id];
   const currentCard = useMemo(
@@ -76,23 +72,7 @@ export function FoodVolumeEssay({
 
   useEffect(() => {
     setLightboxCard(null);
-    setZoomDelta(0);
   }, [volume.id, pack.id]);
-
-  useEffect(() => {
-    const node = mapFrameRef.current;
-    if (!node) return;
-    const measure = () => {
-      const rect = node.getBoundingClientRect();
-      if (rect.width > 80 && rect.height > 80) {
-        setMapSize({ w: Math.round(rect.width), h: Math.round(rect.height) });
-      }
-    };
-    measure();
-    const obs = new ResizeObserver(measure);
-    obs.observe(node);
-    return () => obs.disconnect();
-  }, []);
 
   const tastedInVolCount = useMemo(
     () => volume.cards.filter((c) => tastedDishSet.has(c.id)).length,
@@ -100,33 +80,6 @@ export function FoodVolumeEssay({
   );
   const allVolTasted =
     volume.cards.length > 0 && tastedInVolCount === volume.cards.length;
-
-  // Compute slippy guide map scene
-  const guideScene = useMemo(() => {
-    const baseZoom = Math.max(10, Math.min(13, pack.defaultZoom + 1));
-    const z = Math.max(8, Math.min(15, baseZoom + zoomDelta));
-    const centerCoord = currentCard?.coord ?? pack.center;
-    const centerPx = worldPx(centerCoord[0], centerCoord[1], z);
-    const originX = centerPx.x - mapSize.w / 2;
-    const originY = centerPx.y - mapSize.h / 2;
-    const x0 = Math.floor(originX / TILE);
-    const y0 = Math.floor(originY / TILE);
-    const x1 = Math.floor((originX + mapSize.w) / TILE);
-    const y1 = Math.floor((originY + mapSize.h) / TILE);
-    const maxTile = 2 ** z;
-    const tiles: { x: number; y: number; left: number; top: number }[] = [];
-    for (let x = x0; x <= x1; x++) {
-      for (let y = y0; y <= y1; y++) {
-        if (x < 0 || y < 0 || x >= maxTile || y >= maxTile) continue;
-        tiles.push({ x, y, left: x * TILE - originX, top: y * TILE - originY });
-      }
-    }
-    const project = (lng: number, lat: number) => {
-      const pt = worldPx(lng, lat, z);
-      return { x: pt.x - originX, y: pt.y - originY };
-    };
-    return { z, tiles, project, centerCoord };
-  }, [pack.defaultZoom, pack.center, currentCard, zoomDelta, mapSize]);
 
   function scrollToCard(cardId: string) {
     onSelectCard(cardId);
@@ -145,7 +98,7 @@ export function FoodVolumeEssay({
       <header id="vol-block-header" className="volume-header">
         <div className="vol-header-top-row">
           <p className="running-head">
-            {pack.provinceLabel} · 《{pack.name}风味图志》 · {volume.index} · 纯单列深度图文食单
+            {pack.provinceLabel} · 《{pack.name}风味图志》 · {volume.index} · 东方美食图解专卷
           </p>
           <div className="vol-batch-checkin">
             <span className="vol-progress-text">
@@ -195,9 +148,9 @@ export function FoodVolumeEssay({
         >
           <div className="block-title-row">
             <h3>
-              一、本卷美食高清实拍橱窗（共 {volume.cards.length} 道代表词条）
+              一、本卷美食高清实拍橱窗（共 {volume.cards.length} 道代表作）
             </h3>
-            <span>点击缩略图切换主图，点击主图可打开高清灯箱或直达下方详述卡片</span>
+            <span>点击缩略图切换主图，点击主图可放大鉴赏或直达下方详述卡片</span>
           </div>
 
           <div className="volume-photo-showcase" data-testid="volume-photo-showcase">
@@ -276,171 +229,7 @@ export function FoodVolumeEssay({
         </section>
       )}
 
-      {/* 3. 单列全宽：本卷老字号与寻味街区空间导览图 */}
-      <section
-        id="vol-block-guidemap"
-        className="volume-block"
-        aria-label="本卷老字号寻味导览地图"
-      >
-        <div className="block-title-row">
-          <h3>二、{pack.name} · {volume.title}老字号与街区导览地图</h3>
-          <span>支持切换「街区寻味 / 山河水土 / 高清卫星」底图，点击图钉直达对应美食</span>
-        </div>
-
-        <figure className={`static-map mode-${mapMode}`} data-testid="volume-guide-map">
-          <div className="static-map-head">
-            <div className="static-map-title-group">
-              <span
-                className="static-map-badge"
-                style={{ background: volMeta.badgeColor }}
-              >
-                {volMeta.icon} {volume.index}寻味坐标
-              </span>
-              <strong>
-                {pack.name} · {volume.title}代表名店与街区分布（WGS84）
-              </strong>
-            </div>
-
-            <div className="static-map-controls">
-              <div className="static-mode-pills">
-                <button
-                  type="button"
-                  className={mapMode === "street" ? "on" : ""}
-                  onClick={() => setMapMode("street")}
-                >
-                  街区寻味
-                </button>
-                <button
-                  type="button"
-                  className={mapMode === "topo" ? "on" : ""}
-                  onClick={() => setMapMode("topo")}
-                >
-                  山河水土
-                </button>
-                <button
-                  type="button"
-                  className={mapMode === "satellite" ? "on" : ""}
-                  onClick={() => setMapMode("satellite")}
-                >
-                  卫星实景
-                </button>
-              </div>
-              <div className="static-zoom-btns">
-                <button
-                  type="button"
-                  title="放大"
-                  onClick={() => setZoomDelta((d) => Math.min(3, d + 1))}
-                >
-                  +
-                </button>
-                <span className="zoom-readout">z{guideScene.z}</span>
-                <button
-                  type="button"
-                  title="缩小"
-                  onClick={() => setZoomDelta((d) => Math.max(-2, d - 1))}
-                >
-                  −
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <div className="static-map-frame" ref={mapFrameRef}>
-            {guideScene.tiles.map((tile) => (
-              <img
-                key={`vmap-${volume.id}-${mapMode}-${guideScene.z}-${tile.x}-${tile.y}`}
-                className="static-tile"
-                alt=""
-                width={TILE}
-                height={TILE}
-                decoding="async"
-                style={{ left: tile.left, top: tile.top }}
-                src={TILE_URL[mapMode](guideScene.z, tile.y, tile.x)}
-                onError={(e) => {
-                  const target = e.currentTarget;
-                  const fb = DIRECT_FALLBACK_URL[mapMode](guideScene.z, tile.y, tile.x);
-                  if (target.src !== fb) target.src = fb;
-                }}
-              />
-            ))}
-
-            <div className="static-pins-layer">
-              {volume.cards.map((card, idx) => {
-                const pt = guideScene.project(card.coord[0], card.coord[1]);
-                if (
-                  pt.x < -30 ||
-                  pt.x > mapSize.w + 30 ||
-                  pt.y < -30 ||
-                  pt.y > mapSize.h + 30
-                ) {
-                  return null;
-                }
-                const isSelected = currentCard?.id === card.id;
-                const isTasted = tastedDishSet.has(card.id);
-                return (
-                  <button
-                    key={card.id}
-                    type="button"
-                    className={`static-pin-marker${isSelected ? " active" : ""}${
-                      isTasted ? " is-tasted" : ""
-                    }`}
-                    style={{
-                      left: `${pt.x}px`,
-                      top: `${pt.y}px`,
-                      borderColor: volMeta.badgeColor,
-                    }}
-                    onClick={() => onSelectCard(card.id)}
-                  >
-                    <span
-                      className="pin-num"
-                      style={{ background: volMeta.badgeColor }}
-                    >
-                      {isTasted ? "✓" : idx + 1}
-                    </span>
-                    <span className="pin-text">{card.title}</span>
-                  </button>
-                );
-              })}
-            </div>
-
-            {currentCard && (
-              <aside className="static-map-inspector">
-                <img
-                  src={assetUrl(currentCard.photoUrl ?? `/photos/${currentCard.id}.jpg`)}
-                  alt={currentCard.title}
-                  className="inspector-thumb"
-                  loading="lazy"
-                  onError={(e) => {
-                    e.currentTarget.style.opacity = "0.25";
-                  }}
-                />
-                <div className="inspector-copy">
-                  <div className="inspector-top">
-                    <span className="inspector-no">{currentCard.flavorProfile}</span>
-                    <strong>{currentCard.title}</strong>
-                    {currentCard.famousSpots[0] && (
-                      <small>🏮 {currentCard.famousSpots[0].name}</small>
-                    )}
-                  </div>
-                  <p className="inspector-tagline">{currentCard.tagline}</p>
-                </div>
-              </aside>
-            )}
-
-            <div className="static-map-float-actions">
-              <button
-                type="button"
-                className="inspect-btn"
-                onClick={() => onOpenFoodMap(volume.id, currentCard?.id)}
-              >
-                📍 打开全屏寻味地图沙盘 ↗
-              </button>
-            </div>
-          </div>
-        </figure>
-      </section>
-
-      {/* 4. 单列全宽：本卷详尽美食图解卡片流 */}
+      {/* 3. 单列全宽：本卷详尽美食图解卡片流 */}
       <section
         id="vol-block-cards"
         className="encyclopedia-cards"
@@ -448,9 +237,9 @@ export function FoodVolumeEssay({
       >
         <div className="block-title-row">
           <h3>
-            三、{pack.name} · {volume.title}深度图解食单（共 {volume.cards.length} 道）
+            二、{pack.name} · {volume.title}深度图解食单（共 {volume.cards.length} 道）
           </h3>
-          <span>每张食单详列味型、技法、道地主料、典故非遗及寻味老字号坐标</span>
+          <span>每张食单详列味型、技法、道地主料、行家吃法与百年老店指引</span>
         </div>
 
         <div className="card-single-list">
@@ -460,6 +249,7 @@ export function FoodVolumeEssay({
             const isSelected = currentCard?.id === card.id;
             const photoSrc = assetUrl(card.photoUrl ?? `/photos/${card.id}.jpg`);
             const record = dishCardToRecord(card, pack);
+            const tips = getConnoisseurTips(card, pack);
 
             return (
               <article
@@ -508,9 +298,6 @@ export function FoodVolumeEssay({
                         <span className="dish-heritage-badge">★ {card.heritageTag}</span>
                       )}
                     </div>
-                    <span className="ency-card-coord">
-                      WGS84: {card.coord[1].toFixed(4)}°N, {card.coord[0].toFixed(4)}°E
-                    </span>
                   </div>
 
                   <div className="ency-card-title-row">
@@ -546,15 +333,27 @@ export function FoodVolumeEssay({
                   {/* 深度饮食志正文 */}
                   <p className="ency-card-detail">{card.body || card.storyAndCraft}</p>
 
+                  {/* 🥢 行家吃法口诀与黄金搭配栏 */}
+                  <div className="dish-connoisseur-tips-box" data-testid={`dish-tips-${card.id}`}>
+                    <div className="dct-item">
+                      <span className="dct-badge">🥢 行家吃法口诀</span>
+                      <p>{tips.eatingTip}</p>
+                    </div>
+                    <div className="dct-item">
+                      <span className="dct-badge pairing">🍵 黄金搭配推荐</span>
+                      <p>{tips.pairingTip}</p>
+                    </div>
+                  </div>
+
                   {/* 寻味老字号与名店推荐列表 */}
                   {card.famousSpots && card.famousSpots.length > 0 && (
                     <div className="dish-famous-spots-box">
-                      <span className="dfs-label">🏮 推荐寻味老字号与地道食肆：</span>
+                      <span className="dfs-label">🏮 寻味老字号与街区指引：</span>
                       <div className="dfs-spots-grid">
                         {card.famousSpots.map((spot) => (
                           <div key={spot.name} className="dfs-spot-chip">
                             <strong>{spot.name}</strong>
-                            <span>📍 {spot.addressHint}</span>
+                            <span>{spot.addressHint}</span>
                             {spot.note && <em>{spot.note}</em>}
                           </div>
                         ))}
@@ -582,18 +381,10 @@ export function FoodVolumeEssay({
                     </button>
                     <button
                       type="button"
-                      className="btn-card-locate"
-                      data-testid={`dish-locate-${card.id}`}
-                      onClick={() => onOpenFoodMap(volume.id, card.id)}
-                    >
-                      📍 寻味地图定位 ↗
-                    </button>
-                    <button
-                      type="button"
                       className="btn-card-zoom"
                       onClick={() => setLightboxCard(card)}
                     >
-                      查看高清实拍大图
+                      🔍 查看高清实拍大图
                     </button>
                   </div>
                 </div>

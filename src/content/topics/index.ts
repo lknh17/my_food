@@ -6,6 +6,9 @@ import { hotpotJianghuPack } from "./hotpotJianghu";
 import { morningFeastPack } from "./morningFeast";
 import { bbqNightmarketPack } from "./bbqNightmarket";
 import { pastriesSweetSoupsPack } from "./pastriesSweetSoups";
+import { teaAndWinePack } from "./teaAndWine";
+import { seasonalFeastPack } from "./seasonalFeast";
+import { heritageBanquetsPack } from "./heritageBanquets";
 
 export const allSpecialTopics: SpecialTopicPack[] = [
   eightCuisinesPack,
@@ -15,6 +18,9 @@ export const allSpecialTopics: SpecialTopicPack[] = [
   morningFeastPack,
   bbqNightmarketPack,
   pastriesSweetSoupsPack,
+  teaAndWinePack,
+  seasonalFeastPack,
+  heritageBanquetsPack,
 ];
 
 export const specialTopicsById: Record<SpecialTopicId, SpecialTopicPack> = {
@@ -25,6 +31,9 @@ export const specialTopicsById: Record<SpecialTopicId, SpecialTopicPack> = {
   "morning-feast": morningFeastPack,
   "bbq-nightmarket": bbqNightmarketPack,
   "pastries-sweet-soups": pastriesSweetSoupsPack,
+  "tea-and-wine": teaAndWinePack,
+  "seasonal-feast": seasonalFeastPack,
+  "heritage-banquets": heritageBanquetsPack,
 };
 
 export function getSpecialTopicPack(id?: SpecialTopicId): SpecialTopicPack {
@@ -40,4 +49,7 @@ export {
   morningFeastPack,
   bbqNightmarketPack,
   pastriesSweetSoupsPack,
+  teaAndWinePack,
+  seasonalFeastPack,
+  heritageBanquetsPack,
 };

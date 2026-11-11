@@ -72,19 +72,22 @@ async function fetchValidTileBuffer(mode: string, z: number, y: number, x: numbe
 function attachShiweiMiddleware(middlewares: {
   use: (fn: (req: any, res: any, next: () => void) => void) => void;
 }) {
+  const baseNoSlash = base.replace(/\/$/, "");
   middlewares.use(async (req, res, next) => {
     if (!req.url) return next();
-    if (req.url.startsWith("/my_food/my_food/")) {
+    if (baseNoSlash && req.url.startsWith(`${baseNoSlash}${baseNoSlash}/`)) {
+      req.url = req.url.replace(new RegExp(`^${baseNoSlash}${baseNoSlash}/`), base);
+    } else if (req.url.startsWith("/my_food/my_food/")) {
       req.url = req.url.replace(/^\/my_food\/my_food\//, base);
-    } else if (base === "/" && req.url.startsWith("/my_food/")) {
-      req.url = req.url.slice(8) || "/";
+    } else if (base === "/" && (req.url.startsWith("/food/") || req.url.startsWith("/my_food/"))) {
+      req.url = req.url.replace(/^\/(my_)?food\//, "/") || "/";
     } else if (
       base !== "/" &&
       (req.url.startsWith("/photos/") ||
         req.url.startsWith("/data/") ||
         req.url.startsWith("/tiles-cache/"))
     ) {
-      req.url = `${base.replace(/\/$/, "")}${req.url}`;
+      req.url = `${baseNoSlash}${req.url}`;
     }
 
     // Local disk-caching tile proxy: /(my_food/)?tiles-cache/:mode/:z/:y/:x.jpg
@@ -143,7 +146,7 @@ export default defineConfig({
   server: {
     host: process.env.HOST ?? "::",
     port: Number(process.env.PORT ?? 5196),
-    strictPort: false,
+    strictPort: true,
     allowedHosts: true,
   },
   preview: {

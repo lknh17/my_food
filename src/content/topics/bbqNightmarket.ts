@@ -173,7 +173,7 @@ export const bbqNightmarketPack: SpecialTopicPack = {
           "photoUrl": "/photos/bbq-kashi-hongliu.jpg"
         },
         {
-          "id": "bbq-kashi-quan yang",
+          "id": "bbq-kashi-quanyang",
           "title": "喀什坑炉烤全羊",
           "cityId": "urumqi",
           "cityName": "喀什",
@@ -191,7 +191,7 @@ export const bbqNightmarketPack: SpecialTopicPack = {
           ],
           "wiki": "烤全羊",
           "query": "新疆 烤全羊 实拍",
-          "photoUrl": "/photos/bbq-kashi-quan yang.jpg"
+          "photoUrl": "/photos/bbq-kashi-quanyang.jpg"
         },
         {
           "id": "bbq-hetian-kaobaozi",

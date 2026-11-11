@@ -8,6 +8,13 @@ import json
 import os
 from typing import Any, Dict, List, Optional, Tuple
 
+from city_expand import (
+    EIGHT_CUISINE_LABELS,
+    build_cohesive_essay,
+    build_eating_tip,
+    build_pairing_tip,
+)
+
 PROVINCE_LABELS = {
     "sc": "四川省",
     "cq": "重庆市",
@@ -89,6 +96,8 @@ def card(
     heritageTag: str = "省市级非遗 / 地标名馔",
     cuisineStyle: Optional[str] = None,
     coord: Optional[List[float]] = None,
+    eatingTip: Optional[str] = None,
+    pairingTip: Optional[str] = None,
 ) -> Dict[str, Any]:
     famous_spots = [
         {"name": s[0], "addressHint": s[1], "note": s[2]} for s in spots
@@ -106,6 +115,10 @@ def card(
         "famousSpots": famous_spots,
         "wiki": wiki,
     }
+    if eatingTip:
+        out["eatingTip"] = eatingTip
+    if pairingTip:
+        out["pairingTip"] = pairingTip
     if query:
         out["query"] = query
     if cuisineStyle:
@@ -118,6 +131,7 @@ def card(
 def build_body(
     city_name: str,
     title: str,
+    cat: str,
     origin_era: str,
     heritage_tag: str,
     cuisine_style: str,
@@ -127,31 +141,30 @@ def build_body(
     essay_core: str,
     spot1_name: str,
     spot1_addr: str,
+    spot2_name: str = "",
 ) -> str:
     """
-    Ensure every DishCard body is a rich, vivid 180-240 char culinary essay.
+    Ensure every DishCard body is a single, cohesive, vivid, non-repetitive 190-250 char culinary essay.
+    If essay_core was already built by build_cohesive_essay (190-250 chars), return it directly without
+    duplicating ingredients, cookingMethod, flavorProfile, or famousSpots.
     """
-    core = essay_core.strip().rstrip("。")
-    base = (
-        f"{core}。本品源起{origin_era}（{heritage_tag}），属{cuisine_style}经典；"
-        f"严选{main_ingredients}，以「{cooking_method}」烹制，尽显「{flavor_profile}」之妙。"
-        f"寻味推荐赴{spot1_name}（{spot1_addr}）品鉴地道火候。"
+    core = essay_core.strip()
+    if 190 <= len(core) <= 250 and spot1_name in core:
+        return core
+    return build_cohesive_essay(
+        city_name=city_name,
+        title=title,
+        cat=cat,
+        cuisine_style=cuisine_style,
+        origin_era=origin_era,
+        heritage_tag=heritage_tag,
+        flavor_profile=flavor_profile,
+        cooking_method=cooking_method,
+        main_ingredients=main_ingredients,
+        spot1_name=spot1_name,
+        spot1_addr=spot1_addr,
+        spot2_name=spot2_name or f"{city_name}{title}传习老铺",
     )
-    if len(base) < 182:
-        extra = f"入口层次分明、余韵绵长，堪称{city_name}饮食风土的活态样本。"
-        base = base + extra
-    if len(base) > 238:
-        # Trim cleanly near 225-236 chars and close with period
-        trimmed = base[:235]
-        for sep in ["。", "；", "，"]:
-            idx = trimmed.rfind(sep)
-            if idx >= 182:
-                trimmed = trimmed[:idx] + "。"
-                break
-        else:
-            trimmed = trimmed[:234] + "。"
-        base = trimmed
-    return base
 
 
 def build_city_pack(spec: Dict[str, Any]) -> Dict[str, Any]:
@@ -210,10 +223,12 @@ def build_city_pack(spec: Dict[str, Any]) -> Dict[str, Any]:
             h_tag = item.get("heritageTag", "地方非遗 / 城市名片")
             tagline = item["tagline"]
             spots = item["famousSpots"]
+            spot2_name = spots[1]["name"] if len(spots) > 1 else f"{name}{item_title}传习老铺"
 
             body = build_body(
                 city_name=name,
                 title=item_title,
+                cat=cat_id,
                 origin_era=o_era,
                 heritage_tag=h_tag,
                 cuisine_style=c_style,
@@ -223,6 +238,14 @@ def build_city_pack(spec: Dict[str, Any]) -> Dict[str, Any]:
                 essay_core=item["body"],
                 spot1_name=spots[0]["name"],
                 spot1_addr=spots[0]["addressHint"],
+                spot2_name=spot2_name,
+            )
+
+            eating_tip = item.get("eatingTip") or build_eating_tip(
+                cat_id, item_title, f_prof, c_meth, m_ing
+            )
+            pairing_tip = item.get("pairingTip") or build_pairing_tip(
+                cat_id, item_title, f_prof, item.get("eightCuisine", eight), staple_type
             )
 
             card_obj = {
@@ -238,6 +261,8 @@ def build_city_pack(spec: Dict[str, Any]) -> Dict[str, Any]:
                 "heritageTag": h_tag,
                 "tagline": tagline,
                 "body": body,
+                "eatingTip": eating_tip,
+                "pairingTip": pairing_tip,
                 "famousSpots": spots,
                 "coord": card_coord,
                 "wiki": item["wiki"],
@@ -269,7 +294,7 @@ def build_city_pack(spec: Dict[str, Any]) -> Dict[str, Any]:
 
     raw_ov = spec["overview"]
     chains_out = []
-    for idx, ch in enumerate(raw_ov["causalityChains"]):
+    for idx, ch in enumerate(raw_ov.get("causalityChains", [])):
         ch_coord = ch.get(
             "coord",
             [round(center[0] + 0.005 * (idx + 1), 4), round(center[1] - 0.004 * (idx + 1), 4)],
@@ -284,6 +309,65 @@ def build_city_pack(spec: Dict[str, Any]) -> Dict[str, Any]:
             }
         )
 
+    zhushi_c = volumes_out[2]["cards"][0]
+    dacai_c = volumes_out[0]["cards"][0]
+    xiaochi_c = volumes_out[1]["cards"][0]
+    shijie_c = volumes_out[4]["cards"][0]
+
+    day_route = raw_ov.get("dayRoute") or [
+        {
+            "meal": "卯辰 · 清晨过早 (06:30–09:00)",
+            "time": "06:30–09:00",
+            "title": f"晨光头汤 · {zhushi_c['title']}唤醒味蕾",
+            "dishName": zhushi_c["title"],
+            "shopName": f"{zhushi_c['famousSpots'][0]['name']}（{zhushi_c['famousSpots'][0]['addressHint']}）",
+            "desc": (
+                f"清晨赶头锅走进{zhushi_c['famousSpots'][0]['name']}，点上一碗地道的「{zhushi_c['title']}」。"
+                f"以「{zhushi_c['cookingMethod']}」呈现的「{zhushi_c['flavorProfile']}」风味，是{name}人开启一天的碳水仪式。"
+            ),
+        },
+        {
+            "meal": "午时 · 正席大菜 (11:30–13:30)",
+            "time": "11:30–13:30",
+            "title": f"午间正席 · 镇桌名馔{dacai_c['title']}",
+            "dishName": dacai_c["title"],
+            "shopName": f"{dacai_c['famousSpots'][0]['name']}（{dacai_c['famousSpots'][0]['addressHint']}）",
+            "desc": (
+                f"午间落座名店{dacai_c['famousSpots'][0]['name']}，品鉴镇桌硬菜「{dacai_c['title']}」。"
+                f"严选{dacai_c['mainIngredients']}经「{dacai_c['cookingMethod']}」细烹，尽显{name}「{dacai_c['flavorProfile']}」的庖厨功底。"
+            ),
+        },
+        {
+            "meal": "申时 · 午后茶食 (15:00–17:00)",
+            "time": "15:00–17:00",
+            "title": f"申时茶歇 · 街巷慢品{xiaochi_c['title']}",
+            "dishName": xiaochi_c["title"],
+            "shopName": f"{xiaochi_c['famousSpots'][0]['name']}（{xiaochi_c['famousSpots'][0]['addressHint']}）",
+            "desc": (
+                f"午后漫步{xiaochi_c['famousSpots'][0]['addressHint']}，寻访{xiaochi_c['famousSpots'][0]['name']}尝一碟「{xiaochi_c['title']}」。"
+                f"「{xiaochi_c['flavorProfile']}」的精巧滋味佐以一盏清茶，最得{name}市井闲情。"
+            ),
+        },
+        {
+            "meal": "戌亥 · 夜市宵夜 (20:00–24:00)",
+            "time": "20:00–24:00",
+            "title": f"戌亥夜宴 · {shijie_c['title']}烟火寻味",
+            "dishName": shijie_c["title"],
+            "shopName": f"{shijie_c['famousSpots'][0]['name']}（{shijie_c['famousSpots'][0]['addressHint']}）",
+            "desc": (
+                f"华灯初上后直奔{shijie_c['famousSpots'][0]['name']}，在「{shijie_c['title']}」的升腾烟火中"
+                f"遍尝{shijie_c['mainIngredients']}，于「{shijie_c['flavorProfile']}」的夜色香气里圆满收官。"
+            ),
+        },
+    ]
+
+    facts_out = []
+    for f in raw_ov["culinaryFacts"]:
+        val = f[1]
+        if f[0] == "八大菜系" and val in EIGHT_CUISINE_LABELS:
+            val = EIGHT_CUISINE_LABELS[val]
+        facts_out.append({"label": f[0], "value": val, "detail": f[2]})
+
     overview = {
         "subtitle": raw_ov["subtitle"],
         "leadParagraphs": raw_ov["leadParagraphs"],
@@ -291,10 +375,8 @@ def build_city_pack(spec: Dict[str, Any]) -> Dict[str, Any]:
             {"label": r[0], "score": r[1], "note": r[2]}
             for r in raw_ov["flavorRadar"]
         ],
-        "culinaryFacts": [
-            {"label": f[0], "value": f[1], "detail": f[2]}
-            for f in raw_ov["culinaryFacts"]
-        ],
+        "culinaryFacts": facts_out,
+        "dayRoute": day_route,
         "causalityChains": chains_out,
     }
 

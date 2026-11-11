@@ -167,7 +167,7 @@ export function FoodSidebarIndex({
           <ul className="tsi-outline-list">
             <li>
               <button type="button" onClick={() => scrollToElement("vol-block-header")}>
-                01 · 卷首风土导语与打卡进度
+                01 · 卷首风土导语与品鉴进度
               </button>
             </li>
             <li>
@@ -176,13 +176,8 @@ export function FoodSidebarIndex({
               </button>
             </li>
             <li>
-              <button type="button" onClick={() => scrollToElement("vol-block-guidemap")}>
-                03 · 老字号与寻味街区导览地图
-              </button>
-            </li>
-            <li>
               <button type="button" onClick={() => scrollToElement("vol-block-cards")}>
-                04 · {activeVolume.title}深度图解食单 ({activeVolume.cards.length})
+                03 · {activeVolume.title}深度图解食单 ({activeVolume.cards.length})
               </button>
             </li>
           </ul>
@@ -201,8 +196,8 @@ export function FoodSidebarIndex({
                 className={folio === "overview" ? "on" : ""}
                 onClick={() => onSelectFolio("overview")}
               >
-                <span>★ 城市风味总览</span>
-                <em>6维雷达</em>
+                <span>★ 城市风味总览 & 一日四餐</span>
+                <em>总览</em>
               </button>
             </li>
             {pack.volumes.map((v) => {
@@ -255,8 +250,8 @@ export function FoodSidebarIndex({
             </button>
           </li>
           <li>
-            <button type="button" onClick={() => scrollToElement("ov-radar-facts")}>
-              01 · 六轴味型雷达与饮食地理档案
+            <button type="button" onClick={() => scrollToElement("ov-day-route")}>
+              01 · 🕒 十二时辰 · 一日四餐寻味动线
             </button>
           </li>
           <li>
@@ -265,8 +260,8 @@ export function FoodSidebarIndex({
             </button>
           </li>
           <li>
-            <button type="button" onClick={() => scrollToElement("ov-causality")}>
-              03 · 水土物产→风味演进三大因果链
+            <button type="button" onClick={() => scrollToElement("ov-radar-facts")}>
+              03 · 六维味型雷达与风味档案
             </button>
           </li>
           <li>
@@ -275,8 +270,8 @@ export function FoodSidebarIndex({
             </button>
           </li>
           <li>
-            <button type="button" onClick={() => scrollToElement("ov-neighbors")}>
-              05 · 周边邻城风味对比与寻味圈
+            <button type="button" onClick={() => scrollToElement("ov-city-pk")}>
+              05 · ⚖️ 双城风味 PK 对比台
             </button>
           </li>
         </ul>

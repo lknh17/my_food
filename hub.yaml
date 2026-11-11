@@ -1,0 +1,49 @@
+# 这个仓库怎么跑，由这个仓库自己说了算。
+# 中枢（my_web_center）只负责「放在哪、归哪类、这台机器跑不跑」。
+schemaVersion: 1
+
+projects:
+  - id: my-food
+    name: 食味
+    description: 中华风味图志，全国 34 省级行政区美食地图与七大美食专题全集
+    icon: "🍜"
+    mode: service
+    route: /food/
+    tags: [Vite, 美食, 地图]
+
+    services:
+      - id: web
+        name: 寻味站
+        portHint: 5196
+        cmd:
+          - "${node}"
+          - node_modules/vite/bin/vite.js
+          - --host
+          - "${host}"
+          - --port
+          - "${port}"
+        routes:
+          - prefix: /food/
+            ws: true
+        health:
+          type: http
+          path: /food/favicon.ico
+          expectStatus: [200]
+          startupGraceMs: 20000
+
+    setup:
+      - name: 装依赖
+        skipIfExists: node_modules
+        cmd: ["npm", "install"]
+
+    requires:
+      node: ">=20"
+      paths:
+        - node_modules/vite
+        - public/favicon.ico
+
+    effects:
+      - kind: network
+        detail: 地图底图会请求高德与 Esri 在线街区、地形和卫星瓦片并缓存到本地
+
+    startPolicy: autostart-ok

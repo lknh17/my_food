@@ -28,15 +28,14 @@ export type TastedDishInput = Omit<TastedDishRecord, "timestamp" | "photoUrl"> &
   timestamp?: number;
 };
 
-const TASTED_DISHES_KEY = "shiwei_tasted_dishes_v1";
-const WISHLIST_DISHES_KEY = "shiwei_wishlist_dishes_v1";
-const VISITED_CITIES_KEY = "shiwei_visited_cities_v1";
+const TASTED_DISHES_KEY = "shiwei_tasted_dishes_v2";
+const WISHLIST_DISHES_KEY = "shiwei_wishlist_dishes_v2";
 const SYNC_EVENT = "shiwei-food-footprints-sync";
 
 const DEFAULT_TASTED_DISHES: TastedDishRecord[] = [
   {
-    cardId: "cd-mapo-tofu",
-    title: "陈麻婆豆腐",
+    cardId: "chengdu-mapo",
+    title: "麻婆豆腐",
     cityId: "chengdu",
     cityName: "成都",
     province: "sc",
@@ -44,14 +43,14 @@ const DEFAULT_TASTED_DISHES: TastedDishRecord[] = [
     category: "dacai",
     cuisineStyle: "川菜 · 上河帮",
     eightCuisine: "chuan",
-    photoUrl: "/photos/cd-mapo-tofu.jpg",
+    photoUrl: "/photos/chengdu-mapo.jpg",
     coord: [104.0665, 30.6638],
-    note: "麻辣烫酥嫩鲜香活八字箴言，郫县豆瓣与汉源贡椒香气绝妙。",
+    note: "麻辣烫酥嫩鲜香活八字箴言，郫县豆瓣与汉源贡椒香气绝妙，趁热拌米饭一绝。",
     timestamp: 1762000000000,
   },
   {
-    cardId: "bj-peking-duck",
-    title: "北京果木挂炉烤鸭",
+    cardId: "beijing-kaoya",
+    title: "北京烤鸭",
     cityId: "beijing",
     cityName: "北京",
     province: "bj",
@@ -59,14 +58,14 @@ const DEFAULT_TASTED_DISHES: TastedDishRecord[] = [
     category: "dacai",
     cuisineStyle: "京菜 · 宫廷鲁菜脉",
     eightCuisine: "lu",
-    photoUrl: "/photos/bj-peking-duck.jpg",
+    photoUrl: "/photos/beijing-kaoya.jpg",
     coord: [116.4052, 39.9149],
     note: "枣木明火挂炉烤制，鸭皮蘸白糖入口即化，荷叶饼卷葱丝甜面酱醇厚。",
     timestamp: 1762100000000,
   },
   {
-    cardId: "gz-har-gow",
-    title: "广式晶莹虾饺皇",
+    cardId: "guangzhou-xiajiao",
+    title: "广式虾饺皇",
     cityId: "guangzhou",
     cityName: "广州",
     province: "gd",
@@ -74,14 +73,14 @@ const DEFAULT_TASTED_DISHES: TastedDishRecord[] = [
     category: "xiaochi",
     cuisineStyle: "粤菜 · 广府早茶",
     eightCuisine: "yue",
-    photoUrl: "/photos/gz-har-gow.jpg",
+    photoUrl: "/photos/guangzhou-xiajiao.jpg",
     coord: [113.2442, 23.1092],
     note: "澄面皮十二道褶半透明如玉，整颗青虾仁爽脆弹牙伴笋丁鲜汁。",
     timestamp: 1762200000000,
   },
   {
-    cardId: "cq-old-hotpot",
-    title: "重庆九宫格牛油老火锅",
+    cardId: "chongqing-huoguo",
+    title: "重庆九宫格老火锅",
     cityId: "chongqing",
     cityName: "重庆",
     province: "cq",
@@ -89,13 +88,13 @@ const DEFAULT_TASTED_DISHES: TastedDishRecord[] = [
     category: "dacai",
     cuisineStyle: "川菜 · 巴渝江湖",
     eightCuisine: "chuan",
-    photoUrl: "/photos/cq-old-hotpot.jpg",
+    photoUrl: "/photos/chongqing-huoguo.jpg",
     coord: [106.5768, 29.5579],
     note: "醇厚牛油翻滚石柱红与茂汶花椒，鲜毛肚七上八下脆嫩化渣。",
     timestamp: 1762300000000,
   },
   {
-    cardId: "lz-beef-noodles",
+    cardId: "lanzhou-niuroumian",
     title: "兰州清汤牛肉面",
     cityId: "lanzhou",
     cityName: "兰州",
@@ -104,14 +103,14 @@ const DEFAULT_TASTED_DISHES: TastedDishRecord[] = [
     category: "zhushi",
     cuisineStyle: "西北风味 · 陇上拉面",
     eightCuisine: "local",
-    photoUrl: "/photos/lz-beef-noodles.jpg",
+    photoUrl: "/photos/lanzhou-niuroumian.jpg",
     coord: [103.8236, 36.0581],
     note: "一清二白三红四绿五黄，头锅牛骨清汤配蓬灰手工二细，辣子香而不燥。",
     timestamp: 1762400000000,
   },
   {
-    cardId: "xa-roujiamo",
-    title: "西安樊记腊汁肉夹馍",
+    cardId: "xian-roujiamo",
+    title: "西安腊汁肉夹馍",
     cityId: "xian",
     cityName: "西安",
     province: "sn",
@@ -119,14 +118,47 @@ const DEFAULT_TASTED_DISHES: TastedDishRecord[] = [
     category: "xiaochi",
     cuisineStyle: "秦菜 · 关中碳水",
     eightCuisine: "local",
-    photoUrl: "/photos/xa-roujiamo.jpg",
+    photoUrl: "/photos/xian-roujiamo.jpg",
     coord: [108.9465, 34.2586],
     note: "铁圈虎背菊花心白吉馍酥脆掉渣，陈年老汤焖制的腊汁肉肥而不腻。",
     timestamp: 1762500000000,
   },
+];
+
+const DEFAULT_WISHLIST_DISHES: TastedDishRecord[] = [
+  {
+    cardId: "yangzhou-shizitou",
+    title: "清炖蟹粉狮子头",
+    cityId: "yangzhou",
+    cityName: "扬州",
+    province: "js",
+    provinceLabel: "江苏省",
+    category: "dacai",
+    cuisineStyle: "苏菜 · 淮扬正宗",
+    eightCuisine: "su",
+    photoUrl: "/photos/yangzhou-shizitou.jpg",
+    coord: [119.4129, 32.3942],
+    note: "细切粗斩石榴粒，高汤砂锅文火慢炖，肥嫩似豆腐、入口即化。",
+    timestamp: 1762750000000,
+  },
+  {
+    cardId: "huangshan-chouyu",
+    title: "徽州臭鳜鱼",
+    cityId: "huangshan",
+    cityName: "黄山",
+    province: "ah",
+    provinceLabel: "安徽省",
+    category: "dacai",
+    cuisineStyle: "徽菜 · 古徽州",
+    eightCuisine: "hui",
+    photoUrl: "/photos/huangshan-chouyu.jpg",
+    coord: [118.3292, 29.7147],
+    note: "木桶淡盐轻度发酵，闻着微臭吃着奇香，鱼肉呈蒜瓣状紧实入味。",
+    timestamp: 1762780000000,
+  },
   {
     cardId: "liuzhou-luosifen",
-    title: "柳州老牌原汤螺蛳粉",
+    title: "柳州螺蛳粉",
     cityId: "liuzhou",
     cityName: "柳州",
     province: "gx",
@@ -137,67 +169,8 @@ const DEFAULT_TASTED_DISHES: TastedDishRecord[] = [
     photoUrl: "/photos/liuzhou-luosifen.jpg",
     coord: [109.4126, 24.3146],
     note: "石螺猪骨熬汤配老坛酸笋、炸腐竹与炸鸭脚，酸辣鲜爽直击灵魂。",
-    timestamp: 1762600000000,
+    timestamp: 1762800000000,
   },
-  {
-    cardId: "yz-squirrel-fish",
-    title: "苏式松鼠鳜鱼",
-    cityId: "suzhou_js",
-    cityName: "苏州",
-    province: "js",
-    provinceLabel: "江苏省",
-    category: "dacai",
-    cuisineStyle: "苏菜 · 苏锡帮",
-    eightCuisine: "su",
-    photoUrl: "/photos/yz-squirrel-fish.jpg",
-    coord: [120.6258, 31.3114],
-    note: "牡丹花刀麦穗翻卷，浇沸热糖醋卤汁吱吱作响，外脆里嫩酸甜适口。",
-    timestamp: 1762700000000,
-  },
-];
-
-const DEFAULT_WISHLIST_DISHES: TastedDishRecord[] = [
-  {
-    cardId: "fz-fotiaoqiang",
-    title: "聚春园佛跳墙",
-    cityId: "fuzhou_fj",
-    cityName: "福州",
-    province: "fj",
-    provinceLabel: "福建省",
-    category: "dacai",
-    cuisineStyle: "闽菜 · 福州官府",
-    eightCuisine: "min",
-    photoUrl: "/photos/fz-fotiaoqiang.jpg",
-    coord: [119.3005, 26.0822],
-    note: "十八种山珍海味入绍兴酒坛文火煨制，坛启荤香飘四邻。",
-    timestamp: 1762750000000,
-  },
-  {
-    cardId: "hz-stinky-mandarin-fish",
-    title: "徽州古法臭鳜鱼",
-    cityId: "huangshan",
-    cityName: "黄山",
-    province: "ah",
-    provinceLabel: "安徽省",
-    category: "dacai",
-    cuisineStyle: "徽菜 · 古徽州",
-    eightCuisine: "hui",
-    photoUrl: "/photos/hz-stinky-mandarin-fish.jpg",
-    coord: [118.3292, 29.7147],
-    note: "木桶淡盐轻度发酵，闻着微臭吃着奇香，鱼肉呈蒜瓣状紧实入味。",
-    timestamp: 1762780000000,
-  },
-];
-
-const DEFAULT_VISITED_CITIES = [
-  "chengdu",
-  "beijing",
-  "guangzhou",
-  "chongqing",
-  "lanzhou",
-  "xian",
-  "liuzhou",
-  "suzhou_js",
 ];
 
 function emitSync() {
@@ -252,54 +225,12 @@ export function loadWishlistDishes(): TastedDishRecord[] {
   }
 }
 
-export function loadVisitedCities(): string[] {
-  if (typeof window === "undefined") return DEFAULT_VISITED_CITIES;
-  try {
-    const raw = window.localStorage.getItem(VISITED_CITIES_KEY);
-    const manual: string[] = raw !== null ? JSON.parse(raw) : DEFAULT_VISITED_CITIES;
-    const tasted = loadTastedDishes();
-    const merged = new Set<string>(Array.isArray(manual) ? manual : DEFAULT_VISITED_CITIES);
-    for (const d of tasted) {
-      if (d.cityId) merged.add(d.cityId);
-    }
-    return Array.from(merged);
-  } catch {
-    return DEFAULT_VISITED_CITIES;
-  }
-}
-
 function normalizeRecord(input: TastedDishInput): TastedDishRecord {
   return {
     ...input,
     photoUrl: input.photoUrl ?? `/photos/${input.cardId}.jpg`,
     timestamp: input.timestamp ?? Date.now(),
   };
-}
-
-export function markCityVisited(cityId: string): string[] {
-  const cur = loadVisitedCities();
-  if (cur.includes(cityId)) return cur;
-  const next = [cityId, ...cur];
-  try {
-    window.localStorage.setItem(VISITED_CITIES_KEY, JSON.stringify(next));
-    emitSync();
-  } catch {
-    // ignore storage errors
-  }
-  return next;
-}
-
-export function toggleVisitedCity(cityId: string): string[] {
-  const cur = loadVisitedCities();
-  const exists = cur.includes(cityId);
-  const next = exists ? cur.filter((id) => id !== cityId) : [cityId, ...cur];
-  try {
-    window.localStorage.setItem(VISITED_CITIES_KEY, JSON.stringify(next));
-    emitSync();
-  } catch {
-    // ignore storage errors
-  }
-  return next;
 }
 
 export function toggleTastedDish(itemOrId: TastedDishInput | string): TastedDishRecord[] {
@@ -313,20 +244,6 @@ export function toggleTastedDish(itemOrId: TastedDishInput | string): TastedDish
   } else if (typeof itemOrId !== "string") {
     const rec = normalizeRecord(itemOrId);
     next = [rec, ...cur];
-    // Automatically light up the city when a dish is tasted
-    if (rec.cityId) {
-      const cities = loadVisitedCities();
-      if (!cities.includes(rec.cityId)) {
-        try {
-          window.localStorage.setItem(
-            VISITED_CITIES_KEY,
-            JSON.stringify([rec.cityId, ...cities]),
-          );
-        } catch {
-          // ignore
-        }
-      }
-    }
   } else {
     return cur;
   }
@@ -386,7 +303,7 @@ export function updateDishNote(cardId: string, note: string): TastedDishRecord[]
 export function setDishesTastedBatch(
   items: TastedDishInput[],
   tasted: boolean,
-  cityId?: string,
+  _cityId?: string,
 ): TastedDishRecord[] {
   const cur = loadTastedDishes();
   const targetIds = new Set(items.map((i) => i.cardId));
@@ -398,20 +315,6 @@ export function setDishesTastedBatch(
       .filter((i) => !existingIds.has(i.cardId))
       .map((i) => normalizeRecord(i));
     next = [...additions, ...cur];
-    const targetCity = cityId ?? items[0]?.cityId;
-    if (targetCity) {
-      const cities = loadVisitedCities();
-      if (!cities.includes(targetCity)) {
-        try {
-          window.localStorage.setItem(
-            VISITED_CITIES_KEY,
-            JSON.stringify([targetCity, ...cities]),
-          );
-        } catch {
-          // ignore
-        }
-      }
-    }
   } else {
     next = cur.filter((d) => !targetIds.has(d.cardId));
   }
@@ -446,13 +349,11 @@ export function inferEightCuisineFromRecord(rec: TastedDishRecord): EightCuisine
 export function useFoodFootprints() {
   const [tastedDishes, setTastedDishes] = useState<TastedDishRecord[]>(() => loadTastedDishes());
   const [wishlistDishes, setWishlistDishes] = useState<TastedDishRecord[]>(() => loadWishlistDishes());
-  const [visitedCityIds, setVisitedCityIds] = useState<string[]>(() => loadVisitedCities());
 
   useEffect(() => {
     const sync = () => {
       setTastedDishes(loadTastedDishes());
       setWishlistDishes(loadWishlistDishes());
-      setVisitedCityIds(loadVisitedCities());
     };
     window.addEventListener(SYNC_EVENT, sync);
     window.addEventListener("storage", sync);
@@ -468,8 +369,6 @@ export function useFoodFootprints() {
   const wishlistDishIds = useMemo(() => wishlistDishes.map((d) => d.cardId), [wishlistDishes]);
   const wishlistDishSet = useMemo(() => new Set(wishlistDishIds), [wishlistDishIds]);
 
-  const visitedCitySet = useMemo(() => new Set(visitedCityIds), [visitedCityIds]);
-
   const visitedProvinceSet = useMemo(() => {
     const set = new Set<ProvinceId>();
     for (const d of tastedDishes) {
@@ -480,29 +379,20 @@ export function useFoodFootprints() {
 
   const toggleTasted = useCallback((itemOrId: TastedDishInput | string) => {
     setTastedDishes(toggleTastedDish(itemOrId));
-    setVisitedCityIds(loadVisitedCities());
   }, []);
 
   const toggleWishlist = useCallback((itemOrId: TastedDishInput | string) => {
     setWishlistDishes(toggleWishlistDish(itemOrId));
   }, []);
 
-  const toggleCityVisited = useCallback((cityId: string) => {
-    setVisitedCityIds(toggleVisitedCity(cityId));
-  }, []);
-
-  const recordCityVisit = useCallback((cityId: string) => {
-    setVisitedCityIds(markCityVisited(cityId));
-  }, []);
-
   const updateNote = useCallback((cardId: string, note: string) => {
     setTastedDishes(updateDishNote(cardId, note));
+    setWishlistDishes(loadWishlistDishes());
   }, []);
 
   const setBatchTasted = useCallback(
     (items: TastedDishInput[], tasted: boolean, cityId?: string) => {
       setTastedDishes(setDishesTastedBatch(items, tasted, cityId));
-      setVisitedCityIds(loadVisitedCities());
     },
     [],
   );
@@ -512,10 +402,6 @@ export function useFoodFootprints() {
     (cardId: string) => wishlistDishSet.has(cardId),
     [wishlistDishSet],
   );
-  const isCityVisited = useCallback(
-    (cityId: string) => visitedCitySet.has(cityId),
-    [visitedCitySet],
-  );
 
   return {
     tastedDishes,
@@ -524,17 +410,12 @@ export function useFoodFootprints() {
     wishlistDishes,
     wishlistDishIds,
     wishlistDishSet,
-    visitedCityIds,
-    visitedCitySet,
     visitedProvinceSet,
     toggleTasted,
     toggleWishlist,
-    toggleCityVisited,
-    recordCityVisit,
     updateNote,
     setBatchTasted,
     isTasted,
     isWishlisted,
-    isCityVisited,
   };
 }

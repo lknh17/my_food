@@ -169,6 +169,7 @@ export function FoodMapView({
     if (!container) return;
     let map: MlMap | null = null;
     try {
+      const origin = typeof window !== "undefined" ? window.location.origin : "";
       map = new maplibregl.Map({
         container,
         style: {
@@ -176,17 +177,17 @@ export function FoodMapView({
           sources: {
             street: {
               type: "raster",
-              tiles: [assetUrl("tiles-cache/street/{z}/{y}/{x}.jpg")],
+              tiles: [`${origin}${assetUrl("tiles-cache/street/{z}/{y}/{x}.jpg")}`],
               tileSize: 256,
             },
             topo: {
               type: "raster",
-              tiles: [assetUrl("tiles-cache/topo/{z}/{y}/{x}.jpg")],
+              tiles: [`${origin}${assetUrl("tiles-cache/topo/{z}/{y}/{x}.jpg")}`],
               tileSize: 256,
             },
             satellite: {
               type: "raster",
-              tiles: [assetUrl("tiles-cache/satellite/{z}/{y}/{x}.jpg")],
+              tiles: [`${origin}${assetUrl("tiles-cache/satellite/{z}/{y}/{x}.jpg")}`],
               tileSize: 256,
             },
           },

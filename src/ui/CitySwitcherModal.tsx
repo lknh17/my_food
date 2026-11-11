@@ -57,8 +57,7 @@ export function CitySwitcherModal({
   const [provinceFilter, setProvinceFilter] = useState<ProvinceId | "all">(
     currentCity?.province ?? "all",
   );
-  const { tastedDishSet, visitedCitySet, toggleTasted, toggleCityVisited } =
-    useFoodFootprints();
+  const { tastedDishSet, toggleTasted } = useFoodFootprints();
 
   const totalDishCount = useMemo(
     () =>
@@ -153,7 +152,7 @@ export function CitySwitcherModal({
                 onOpenChinaPortal();
               }}
             >
-              🌏 打开全国 34 省美食大地图 →
+              🏮 返回寻味画报首页 →
             </button>
             <button type="button" className="btn-close-modal" onClick={onClose}>
               关闭 ✕
@@ -222,7 +221,7 @@ export function CitySwitcherModal({
           <section className="csm-landmark-results" data-testid="dish-search-results">
             <div className="csm-sec-title">
               <strong>
-                🥢 跨城美食与老字号词条匹配（找到 {dishHits.length} 道风味，点击直达对应城市食单）
+                🥢 跨城美食与老字号词条匹配（找到 {dishHits.length} 道风味，点击直达对应菜品详述）
               </strong>
             </div>
             <div className="csm-landmark-grid">
@@ -299,15 +298,12 @@ export function CitySwitcherModal({
             <nav className="city-switch csm-city-grid" aria-label="美食城市切换">
               {visibleCities.map((city) => {
                 const on = city.id === currentCity?.id;
-                const isVisited = visitedCitySet.has(city.id);
                 return (
                   <div
                     key={city.id}
                     role="button"
                     tabIndex={0}
-                    className={`csm-city-card-btn${on ? " on" : ""}${
-                      isVisited ? " visited" : ""
-                    }`}
+                    className={`csm-city-card-btn${on ? " on" : ""}`}
                     data-testid={`switch-city-${city.id}`}
                     onClick={() => {
                       onSelectCity(city.id);
@@ -316,21 +312,9 @@ export function CitySwitcherModal({
                   >
                     <div className="csm-card-top">
                       <strong>{city.name}</strong>
-                      <div style={{ display: "inline-flex", gap: "4px", alignItems: "center" }}>
-                        <span className="csm-prov-tag">
-                          {city.provinceLabel.slice(0, 2)}
-                        </span>
-                        <button
-                          type="button"
-                          className={`cfp-visited-toggle${isVisited ? " on" : ""}`}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            toggleCityVisited(city.id);
-                          }}
-                        >
-                          {isVisited ? "✓ 已尝" : "+ 打卡"}
-                        </button>
-                      </div>
+                      <span className="csm-prov-tag">
+                        {city.provinceLabel.slice(0, 2)}
+                      </span>
                     </div>
                     <small>
                       {city.cuisineTag} · {city.dominantFlavor}

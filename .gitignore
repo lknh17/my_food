@@ -9,3 +9,5 @@ public/tiles-cache
 .server.log
 *.log
 .vite
+__pycache__/
+*.py[cod]

@@ -21,7 +21,7 @@ export interface CityFoodGazetteerProps {
   onSelectCity: (cityId: string) => void;
   onOpenPortal: () => void;
   onOpenTopicsHub: (topicId?: SpecialTopicId) => void;
-  onOpenFoodMap: (category?: FoodCategoryId, cardId?: string) => void;
+  onOpenFoodMap?: (category?: FoodCategoryId, cardId?: string) => void;
   onOpenPassport: () => void;
   onOpenSearchModal: () => void;
 }
@@ -36,21 +36,14 @@ export function CityFoodGazetteer({
   onSelectCity,
   onOpenPortal,
   onOpenTopicsHub,
-  onOpenFoodMap,
   onOpenPassport,
   onOpenSearchModal,
 }: CityFoodGazetteerProps) {
-  const {
-    tastedDishes,
-    visitedCitySet,
-    visitedProvinceSet,
-    toggleCityVisited,
-  } = useFoodFootprints();
+  const { tastedDishes, wishlistDishes } = useFoodFootprints();
 
   const [auditModalOpen, setAuditModalOpen] = useState(false);
   const [pendingScrollCardId, setPendingScrollCardId] = useState<string | null>(null);
 
-  const isCityVisited = visitedCitySet.has(pack.id);
   const activeVolume =
     folio === "overview"
       ? undefined
@@ -87,7 +80,7 @@ export function CityFoodGazetteer({
 
   return (
     <div className="gazetteer city-food-gazetteer single-column-shell" data-testid="city-food-gazetteer">
-      {/* 1. 顶部全局导航栏 */}
+      {/* 1. 顶部全局导航栏（去地理化、纯美食食单导航） */}
       <header className="clean-global-topbar">
         <div className="cgt-inner">
           <div className="cgt-left">
@@ -96,10 +89,10 @@ export function CityFoodGazetteer({
               className="cgt-home-btn"
               data-testid="back-china-portal"
               onClick={onOpenPortal}
-              title="返回全国34省美食大地图"
+              title="返回东方食单画报首页"
             >
               <span className="seal seal-sm">食味</span>
-              <span>🌏 全国美食地图</span>
+              <span>🏮 寻味画报首页</span>
             </button>
 
             <button
@@ -108,7 +101,7 @@ export function CityFoodGazetteer({
               data-testid="gazetteer-open-topics"
               onClick={() => onOpenTopicsHub()}
             >
-              📚 七大中华美食专题馆
+              📜 十大中华饮食专题馆
             </button>
 
             <span className="cgt-divider" aria-hidden="true">
@@ -118,15 +111,7 @@ export function CityFoodGazetteer({
             <div className="cgt-current-city">
               <span className="cgt-prov-badge">{pack.provinceLabel}</span>
               <span className="cgt-region-badge">{pack.cuisineTag}</span>
-              <strong className="cgt-city-name">{pack.name}</strong>
-              <button
-                type="button"
-                className={`cgt-visited-btn${isCityVisited ? " on" : ""}`}
-                data-testid="topbar-toggle-visited"
-                onClick={() => toggleCityVisited(pack.id)}
-              >
-                {isCityVisited ? "✓ 已寻味此城" : "✓ 本城寻味打卡"}
-              </button>
+              <strong className="cgt-city-name">《{pack.name}》食单</strong>
             </div>
 
             <button
@@ -135,19 +120,11 @@ export function CityFoodGazetteer({
               data-testid="open-city-switcher"
               onClick={onOpenSearchModal}
             >
-              🔍 切换城市 / 搜全国美食 ({allCities.length}城 · ⌘K) ▾
+              🔍 切换城市 / 搜全国名菜 ({allCities.length}城 · ⌘K) ▾
             </button>
           </div>
 
           <div className="cgt-right mast-tools">
-            <button
-              type="button"
-              className="text-btn"
-              data-testid="open-food-passport"
-              onClick={onOpenPassport}
-            >
-              🛂 美食护照 ({tastedDishes.length}道 · {visitedProvinceSet.size}省)
-            </button>
             <button
               type="button"
               className="text-btn"
@@ -159,15 +136,10 @@ export function CityFoodGazetteer({
             <button
               type="button"
               className="text-btn map-entry"
-              data-testid="open-food-map"
-              onClick={() =>
-                onOpenFoodMap(
-                  folio === "overview" ? undefined : folio,
-                  activeCardId ?? undefined,
-                )
-              }
+              data-testid="open-food-passport"
+              onClick={onOpenPassport}
             >
-              🗺️ 全屏寻味地图 ↗
+              🥢 我的食单 (已尝 {tastedDishes.length} · 想吃 {wishlistDishes.length})
             </button>
           </div>
         </div>
@@ -199,7 +171,7 @@ export function CityFoodGazetteer({
             window.scrollTo({ top: 0, behavior: "smooth" });
           }}
         >
-          ★ 城市风味总览
+          ★ 城市风味总览 & 一日四餐
         </button>
         <span className="ribbon-sep" aria-hidden="true" />
         {pack.volumes.map((volume) => {
@@ -221,20 +193,6 @@ export function CityFoodGazetteer({
             </button>
           );
         })}
-        <span className="ribbon-sep" aria-hidden="true" />
-        <button
-          type="button"
-          className="pill-map-btn"
-          data-testid="pill-open-map"
-          onClick={() =>
-            onOpenFoodMap(
-              folio === "overview" ? undefined : folio,
-              activeCardId ?? undefined,
-            )
-          }
-        >
-          📍 老字号地图沙盘 ↗
-        </button>
       </nav>
 
       {/* 4. 左侧常驻食单索引 + 右侧纯单列宽幅阅读流 */}
@@ -273,7 +231,6 @@ export function CityFoodGazetteer({
                 onSelectFolio("overview");
                 window.scrollTo({ top: 0, behavior: "smooth" });
               }}
-              onOpenFoodMap={onOpenFoodMap}
             />
           )}
 
@@ -283,7 +240,6 @@ export function CityFoodGazetteer({
               volume={activeVolume}
               activeCardId={activeCardId}
               onSelectCard={(cid) => onSelectCard(cid)}
-              onOpenFoodMap={onOpenFoodMap}
             />
           )}
         </main>

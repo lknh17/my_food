@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { allCityFoodPacks, getCityFoodPack } from "./content/cities";
 import { allSpecialTopics } from "./content/topics";
 import type { FoodCategoryId, SpecialTopicId } from "./content/types";
-import { FoodMapView } from "./map/FoodMapView";
 import { ChinaFoodPortal } from "./ui/ChinaFoodPortal";
 import { CityFoodGazetteer } from "./ui/CityFoodGazetteer";
 import { CitySwitcherModal } from "./ui/CitySwitcherModal";
@@ -10,7 +9,7 @@ import { FoodPassportModal } from "./ui/FoodPassportModal";
 import type { FoodFolio } from "./ui/FoodSidebarIndex";
 import { SpecialTopicsHub } from "./ui/SpecialTopicsHub";
 
-export type AppDesk = "portal" | "topics" | "gazetteer" | "map";
+export type AppDesk = "portal" | "topics" | "gazetteer";
 
 const VALID_CATEGORIES = new Set<string>([
   "overview",
@@ -29,6 +28,9 @@ const VALID_TOPICS = new Set<string>([
   "morning-feast",
   "bbq-nightmarket",
   "pastries-sweet-soups",
+  "tea-and-wine",
+  "seasonal-feast",
+  "heritage-banquets",
 ]);
 
 export function App() {
@@ -73,9 +75,7 @@ export function App() {
 
       if (viewParam === "topics" || (!viewParam && topicParam)) {
         setDesk("topics");
-      } else if (viewParam === "map") {
-        setDesk("map");
-      } else if (viewParam === "gazetteer" || (!viewParam && cityParam)) {
+      } else if (viewParam === "gazetteer" || viewParam === "map" || (!viewParam && cityParam)) {
         setDesk("gazetteer");
       } else if (viewParam === "portal") {
         setDesk("portal");
@@ -93,7 +93,7 @@ export function App() {
     params.set("view", desk);
     if (desk === "topics") {
       params.set("topic", activeTopicId);
-    } else if (desk === "gazetteer" || desk === "map") {
+    } else if (desk === "gazetteer") {
       params.set("city", activeCity.id);
       params.set("vol", activeCategory);
       if (activeCardId) {
@@ -138,19 +138,6 @@ export function App() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, []);
 
-  const handleOpenFoodMap = useCallback(
-    (cityId?: string, category?: FoodCategoryId, cardId?: string) => {
-      if (cityId) {
-        const pack = getCityFoodPack(cityId);
-        setActiveCityId(pack.id);
-      }
-      if (category) setActiveCategory(category);
-      if (cardId !== undefined) setActiveCardId(cardId);
-      setDesk("map");
-    },
-    [],
-  );
-
   return (
     <div
       className="app shiwei-app"
@@ -166,7 +153,6 @@ export function App() {
           onSelectCity={(cid) => setActiveCityId(cid)}
           onEnterGazetteer={handleEnterGazetteer}
           onOpenTopicsHub={handleOpenTopicsHub}
-          onOpenFoodMap={handleOpenFoodMap}
           onOpenPassport={() => setPassportOpen(true)}
           onOpenSearchModal={() => setSearchModalOpen(true)}
         />
@@ -202,26 +188,8 @@ export function App() {
           }}
           onOpenPortal={() => setDesk("portal")}
           onOpenTopicsHub={handleOpenTopicsHub}
-          onOpenFoodMap={(category, cardId) =>
-            handleOpenFoodMap(activeCity.id, category, cardId)
-          }
           onOpenPassport={() => setPassportOpen(true)}
           onOpenSearchModal={() => setSearchModalOpen(true)}
-        />
-      )}
-
-      {desk === "map" && (
-        <FoodMapView
-          city={activeCity}
-          allCities={allCityFoodPacks}
-          initialCategory={activeCategory === "overview" ? "all" : activeCategory}
-          initialCardId={activeCardId}
-          onSelectCity={(cid) => setActiveCityId(cid)}
-          onBackToGazetteer={(category, cardId) =>
-            handleEnterGazetteer(activeCity.id, category, cardId)
-          }
-          onBackToPortal={() => setDesk("portal")}
-          onOpenPassport={() => setPassportOpen(true)}
         />
       )}
 
@@ -236,7 +204,7 @@ export function App() {
         onClose={() => setSearchModalOpen(false)}
       />
 
-      {/* 个人中华美食寻味护照弹窗 */}
+      {/* 我的食单 · 寻味记录与想吃清单弹窗 */}
       <FoodPassportModal
         open={passportOpen}
         onClose={() => setPassportOpen(false)}
