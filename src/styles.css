@@ -6671,7 +6671,174 @@ img {
   color: var(--cinnabar-dark);
 }
 
+/* ====== 全国 34 省份风味图标卡片矩阵 ====== */
+.cfp-province-icons-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.cfp-prov-icon-card {
+  display: flex;
+  flex-direction: column;
+  background: var(--surface-card);
+  border: 1px solid var(--border-warm);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  cursor: pointer;
+  box-shadow: var(--shadow-soft);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.cfp-prov-icon-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-elevated);
+  border-color: var(--cinnabar);
+}
+
+.cfp-prov-icon-media {
+  position: relative;
+  height: 158px;
+  overflow: hidden;
+  background: #292524;
+}
+
+.cfp-prov-icon-media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.35s ease;
+}
+
+.cfp-prov-icon-card:hover .cfp-prov-icon-media img {
+  transform: scale(1.05);
+}
+
+.cfp-prov-icon-shade {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    rgba(28, 25, 23, 0.35) 0%,
+    rgba(28, 25, 23, 0.12) 45%,
+    rgba(28, 25, 23, 0.86) 100%
+  );
+}
+
+.cfp-prov-icon-top {
+  position: absolute;
+  top: 10px;
+  left: 12px;
+  right: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.cfp-prov-seal-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: inline-grid;
+  place-items: center;
+  color: #fff;
+  font-family: var(--font-serif);
+  font-size: 1rem;
+  font-weight: 800;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.28);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+}
+
+.cfp-prov-region-tag {
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: rgba(28, 25, 23, 0.68);
+  backdrop-filter: blur(4px);
+  color: #FAF6F0;
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.cfp-prov-icon-overlay {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 10px;
+  color: #fff;
+}
+
+.cfp-prov-icon-overlay h3 {
+  margin: 0 0 3px;
+  font-family: var(--font-serif);
+  font-size: 1.24rem;
+  font-weight: 800;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.cfp-prov-icon-overlay h3 small {
+  font-size: 0.76rem;
+  font-weight: 500;
+  opacity: 0.86;
+}
+
+.cfp-prov-icon-overlay p {
+  margin: 0;
+  font-size: 0.78rem;
+  color: rgba(255, 253, 249, 0.92);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cfp-prov-icon-body {
+  padding: 12px 14px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex: 1;
+}
+
+.cfp-prov-cities-row,
+.cfp-prov-dishes-row {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.cfp-prov-city-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.cfp-prov-city-mini {
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: #F4EFE6;
+  color: var(--ink-primary);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.cfp-province-detail-view {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.cfp-prov-cities-block {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
 @media (max-width: 1180px) {
+  .cfp-province-icons-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
   .cfp-hero-grid {
     grid-template-columns: 1fr;
   }

@@ -49,10 +49,10 @@ const FEATURED_HERO_SPECS: { cityId: string; cardId: string; kickerLabel: string
 
 const TOPIC_ICON_MAP: Record<SpecialTopicId, string> = {
   "eight-cuisines": "🥢",
+  "morning-feast": "🥟",
   "noodles-compendium": "🍜",
   "rice-noodles-compendium": "🥣",
   "hotpot-jianghu": "🍲",
-  "morning-feast": "🥟",
   "bbq-nightmarket": "🔥",
   "pastries-sweet-soups": "🍡",
   "tea-and-wine": "🍵",
@@ -126,6 +126,23 @@ const FLAVOR_QUICK_FILTERS = [
   { id: "酸", label: "🍋 酸辣开胃" },
   { id: "烤", label: "🔥 炙烤锅气" },
 ];
+
+interface ProvinceIconCardItem {
+  id: ProvinceId;
+  shortName: string;
+  fullName: string;
+  regionMacro: string;
+  culinaryTitle: string;
+  desc: string;
+  cityCount: number;
+  dishCount: number;
+  tastedCount: number;
+  photoUrl: string;
+  sealCode: string;
+  sealColor: string;
+  cityNames: string[];
+  topDishes: string[];
+}
 
 function scrollToSection(id: string) {
   const el = document.getElementById(id);
@@ -235,7 +252,88 @@ export function ChinaFoodPortal({
     return map;
   }, []);
 
-  // Filtered cities for Section 3
+  // Build 34 Province Icon Cards for the default home view
+  const provinceIconCards = useMemo<ProvinceIconCardItem[]>(() => {
+    const q = search.trim().toLowerCase();
+    const out: ProvinceIconCardItem[] = [];
+
+    for (const tab of PROVINCE_TABS) {
+      if (tab.id === "all") continue;
+      const provId = tab.id;
+      if (macroRegionFilter !== "全部" && tab.regionMacro !== macroRegionFilter) {
+        continue;
+      }
+      const provCities = cities.filter((c) => c.province === provId);
+      if (provCities.length === 0) continue;
+
+      if (flavorFilter !== "all") {
+        const hasFlavor = provCities.some(
+          (c) =>
+            c.dominantFlavor.includes(flavorFilter) ||
+            c.cuisineTag.includes(flavorFilter) ||
+            (flavorFilter === "鲜甜" &&
+              (c.dominantFlavor.includes("甜") || c.dominantFlavor.includes("清鲜"))) ||
+            (flavorFilter === "烤" &&
+              (c.dominantFlavor.includes("烤") ||
+                c.dominantFlavor.includes("香") ||
+                c.cuisineTag.includes("烤"))),
+        );
+        if (!hasFlavor) continue;
+      }
+
+      const vp = PROVINCE_VIEWPORTS[provId] ?? PROVINCE_VIEWPORTS.all;
+      const firstCity = provCities[0];
+      const topCard = firstCity.volumes[0]?.cards[0];
+      const cuisineMeta =
+        EIGHT_CUISINES_META[firstCity.eightCuisine] ?? EIGHT_CUISINES_META.local;
+      const allProvCards = provCities.flatMap((c) => c.volumes.flatMap((v) => v.cards));
+      const tastedCount = allProvCards.filter((c) => tastedDishSet.has(c.id)).length;
+      const cityNames = provCities.map((c) => c.name);
+      const topDishes: string[] = [];
+      for (const c of provCities) {
+        for (const sig of c.signatureDishes.slice(0, 2)) {
+          if (!topDishes.includes(sig) && topDishes.length < 5) {
+            topDishes.push(sig);
+          }
+        }
+      }
+
+      if (q) {
+        const matchProv =
+          tab.shortName.toLowerCase().includes(q) ||
+          tab.label.toLowerCase().includes(q) ||
+          PROVINCE_LABELS[provId].toLowerCase().includes(q) ||
+          vp.culinaryTitle.toLowerCase().includes(q) ||
+          cityNames.some((n) => n.toLowerCase().includes(q)) ||
+          allProvCards.some(
+            (card) =>
+              card.title.toLowerCase().includes(q) ||
+              card.flavorProfile.toLowerCase().includes(q),
+          );
+        if (!matchProv) continue;
+      }
+
+      out.push({
+        id: provId,
+        shortName: tab.shortName,
+        fullName: PROVINCE_LABELS[provId],
+        regionMacro: tab.regionMacro,
+        culinaryTitle: vp.culinaryTitle,
+        desc: vp.desc,
+        cityCount: provCities.length,
+        dishCount: allProvCards.length,
+        tastedCount,
+        photoUrl: topCard?.photoUrl ?? `/photos/${topCard?.id ?? "chengdu-mapo"}.jpg`,
+        sealCode: tab.shortName.slice(0, 1),
+        sealColor: cuisineMeta.color,
+        cityNames,
+        topDishes,
+      });
+    }
+    return out;
+  }, [cities, macroRegionFilter, flavorFilter, search, tastedDishSet]);
+
+  // Filtered cities when a province is selected (or when searching)
   const filteredCities = useMemo(() => {
     const q = search.trim().toLowerCase();
     return cities.filter((c) => {
@@ -322,6 +420,15 @@ export function ChinaFoodPortal({
     setRouletteDish(picked);
   }
 
+  function handleSelectProvince(provId: ProvinceId | "all") {
+    setProvinceFilter(provId);
+    setProvSigCategory("all");
+    if (provId !== "all") {
+      const first = cities.find((c) => c.province === provId);
+      if (first) onSelectCity(first.id);
+    }
+  }
+
   return (
     <div className="china-food-portal editorial-portal-shell" data-testid="china-food-portal">
       {/* 顶部粘性朱砂宣纸报头导航 */}
@@ -341,8 +448,14 @@ export function ChinaFoodPortal({
           </div>
 
           <nav className="cfp-editorial-nav-pills" aria-label="首页分栏导航">
-            <button type="button" onClick={() => scrollToSection("portal-sec-cities")}>
-              🥢 全国34省市食单 ({cities.length}城)
+            <button
+              type="button"
+              onClick={() => {
+                setProvinceFilter("all");
+                scrollToSection("portal-sec-cities");
+              }}
+            >
+              🏮 全国34省份寻味
             </button>
             <button
               type="button"
@@ -355,7 +468,7 @@ export function ChinaFoodPortal({
               🍲 名菜小吃总览
             </button>
             <button type="button" onClick={() => scrollToSection("portal-sec-hero")}>
-              🏮 传世名味画廊 & 随机翻牌
+              🥢 传世名味画廊
             </button>
           </nav>
 
@@ -382,7 +495,7 @@ export function ChinaFoodPortal({
 
       <main className="cfp-editorial-main">
         {/* ====================================================================
-            Section 1: 「全国 34 省市风味食单」清爽浏览墙 + 省级风味汇总专卷
+            Section 1: 首屏先显示「全国 34 省份图标矩阵」；点击某个省份后，先显示该省「各城市」，再显示「该省美食集合」
            ==================================================================== */}
         <section
           id="portal-sec-cities"
@@ -392,14 +505,30 @@ export function ChinaFoodPortal({
           <div className="cfp-section-header">
             <div>
               <span className="cfp-section-kicker">
-                34 PROVINCES & {cities.length} CULINARY CITIES · 地方食单总览与省级风味长卷
+                34 PROVINCES & {cities.length} CULINARY CITIES · 中华省市寻味总导航
               </span>
-              <h2>一、全国 34 省市区 · {cities.length} 座美食名城与省级风味总览</h2>
+              <h2>
+                {provinceFilter === "all"
+                  ? `一、全国 34 省级行政区风味图鉴（点击省份进入城市与全省食单）`
+                  : `一、${PROVINCE_LABELS[provinceFilter]} · 城市分卷与全省美食集合`}
+              </h2>
               <p>
-                选择任一省市区即可展开该省完整饮食风土导览与全省必吃招牌大汇总；点击任意菜名胶囊或城市画报卡直达详情
+                {provinceFilter === "all"
+                  ? `收录全国 34 省市区、${cities.length} 座美食名城、${totalDishesCount}+ 道大菜与小吃；点选任一省份图标或上方导航即可查看该省各城市与全省美食大集合`
+                  : `先按本省重点城市浏览或直达城市五卷食单，下方汇总展示${PROVINCE_LABELS[provinceFilter]}全部必吃大菜与街头小吃`}
               </p>
             </div>
             <div className="cfp-sec-header-actions">
+              {provinceFilter !== "all" && (
+                <button
+                  type="button"
+                  className="btn-hero-secondary"
+                  data-testid="back-all-provinces"
+                  onClick={() => handleSelectProvince("all")}
+                >
+                  ← 返回全国 34 省份图标墙
+                </button>
+              )}
               <button
                 type="button"
                 className="btn-roulette-draw"
@@ -477,9 +606,9 @@ export function ChinaFoodPortal({
             </div>
           )}
 
-          {/* 极简两行筛选栏 */}
+          {/* 顶部省份与风味片区快捷导航栏 */}
           <div className="cfp-clean-filter-panel">
-            {/* 第一行：六大饮食片区 + 味型快筛 + 城市/菜名搜索框 */}
+            {/* 第一行：六大饮食片区 + 味型快筛 + 搜索框 */}
             <div className="cfp-filter-row-top">
               <div className="cfp-macro-pills" role="tablist" aria-label="六大饮食片区">
                 {MACRO_REGIONS.map((macro) => (
@@ -518,7 +647,7 @@ export function ChinaFoodPortal({
                   type="search"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  placeholder={`🔍 筛选城市、菜系或招牌菜（共 ${filteredCities.length} 城）...`}
+                  placeholder="🔍 搜省份、城市或招牌美食..."
                   data-testid="portal-city-search"
                 />
                 {search && (
@@ -529,82 +658,269 @@ export function ChinaFoodPortal({
               </div>
             </div>
 
-            {/* 第二行：34 省级行政区清爽胶囊 */}
-            <div className="cfp-filter-row-provinces" role="group" aria-label="34省级行政区筛选">
+            {/* 第二行：34 省级行政区快捷导航栏 */}
+            <div className="cfp-filter-row-provinces" role="group" aria-label="34省级行政区导航栏">
               {visibleProvinceTabs.map((prov) => (
                 <button
                   key={prov.id}
                   type="button"
                   className={`cfp-prov-clean-pill${provinceFilter === prov.id ? " on" : ""}`}
                   data-testid={`province-${prov.id}`}
-                  onClick={() => {
-                    setProvinceFilter(prov.id);
-                    setProvSigCategory("all");
-                    if (prov.id !== "all") {
-                      const first = cities.find((c) => c.province === prov.id);
-                      if (first) onSelectCity(first.id);
-                    }
-                  }}
+                  onClick={() => handleSelectProvince(prov.id)}
                 >
-                  {prov.id === "all" ? "全国总览 (34省)" : prov.shortName}
+                  {prov.id === "all" ? "🏛️ 全部34省份图标" : prov.shortName}
                 </button>
               ))}
             </div>
           </div>
 
-          {/* 🏛️ 省级风味汇总专卷 (When a specific province is selected) */}
-          {provinceFilter !== "all" && (
-            <div className="cfp-province-summary-panel" data-testid="province-summary-panel">
-              <div className="cfp-prov-summary-header">
-                <div className="cfp-prov-summary-intro">
-                  <div className="cfp-prov-summary-badges">
-                    <span className="cfp-cinnabar-tag">
-                      🏛️ {PROVINCE_LABELS[provinceFilter]} · 省级风味汇总专卷
-                    </span>
-                    <span className="cfp-prov-stat-badge">
-                      本省收录 {filteredCities.length} 座重点美食名城 · 共 {provAllDishes.length} 道代表名馔
-                    </span>
+          {/* ==================================================================
+              状态 A：未选具体省份时（默认首屏）-> 显示「全国 34 省份风味图标卡片矩阵」
+             ================================================================== */}
+          {provinceFilter === "all" ? (
+            provinceIconCards.length === 0 ? (
+              <div className="passport-empty-box">
+                <p>未找到匹配的省份或美食，请尝试重置片区、味型或搜索关键词。</p>
+              </div>
+            ) : (
+              <div
+                className="cfp-province-icons-grid"
+                data-testid="province-icons-grid"
+                role="navigation"
+                aria-label="全国34省份风味图标矩阵"
+              >
+                {provinceIconCards.map((prov) => (
+                  <article
+                    key={prov.id}
+                    className="cfp-prov-icon-card"
+                    data-testid={`prov-card-${prov.id}`}
+                    onClick={() => handleSelectProvince(prov.id)}
+                  >
+                    <div className="cfp-prov-icon-media">
+                      <img
+                        src={assetUrl(prov.photoUrl)}
+                        alt={prov.fullName}
+                        loading="lazy"
+                        onError={(e) => {
+                          e.currentTarget.style.opacity = "0.25";
+                        }}
+                      />
+                      <div className="cfp-prov-icon-shade" />
+                      <div className="cfp-prov-icon-top">
+                        <span
+                          className="cfp-prov-seal-icon"
+                          style={{ background: prov.sealColor }}
+                        >
+                          {prov.sealCode}
+                        </span>
+                        <span className="cfp-prov-region-tag">{prov.regionMacro}</span>
+                        {prov.tastedCount > 0 && (
+                          <span className="cfp-city-mag-tasted">
+                            🥢 已尝 {prov.tastedCount}
+                          </span>
+                        )}
+                      </div>
+                      <div className="cfp-prov-icon-overlay">
+                        <h3>
+                          {prov.shortName}
+                          <small>{prov.fullName}</small>
+                        </h3>
+                        <p>{prov.culinaryTitle}</p>
+                      </div>
+                    </div>
+
+                    <div className="cfp-prov-icon-body">
+                      <div className="cfp-prov-cities-row">
+                        <span className="cfp-cmd-label">
+                          📍 收录 {prov.cityCount} 城 ({prov.dishCount} 道)：
+                        </span>
+                        <div className="cfp-prov-city-chips">
+                          {prov.cityNames.map((cn) => (
+                            <span key={cn} className="cfp-prov-city-mini">
+                              {cn}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="cfp-prov-dishes-row">
+                        <span className="cfp-cmd-label">🥢 镇省名味：</span>
+                        <div className="cfp-cmd-pills">
+                          {prov.topDishes.map((d) => (
+                            <span key={d} className="cfp-cmd-pill">
+                              {d}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            )
+          ) : (
+            /* ==================================================================
+               状态 B：点击某个省份进入后 -> 1. 省份概览头栏 -> 2. 先显示每个城市 -> 3. 再显示本省美食集合
+               ================================================================== */
+            <div className="cfp-province-detail-view" data-testid="province-summary-panel">
+              {/* 1. 省份整体介绍头栏 */}
+              <div className="cfp-province-summary-panel">
+                <div className="cfp-prov-summary-header">
+                  <div className="cfp-prov-summary-intro">
+                    <div className="cfp-prov-summary-badges">
+                      <span className="cfp-cinnabar-tag">
+                        🏛️ {PROVINCE_LABELS[provinceFilter]} · 省级风味专卷
+                      </span>
+                      <span className="cfp-prov-stat-badge">
+                        下辖 {filteredCities.length} 座重点美食名城 · 汇总 {provAllDishes.length} 道代表名馔
+                      </span>
+                    </div>
+                    <h3>
+                      {PROVINCE_LABELS[provinceFilter]} ·{" "}
+                      {PROVINCE_VIEWPORTS[provinceFilter]?.culinaryTitle}
+                    </h3>
+                    <p>{PROVINCE_VIEWPORTS[provinceFilter]?.desc}</p>
                   </div>
-                  <h3>
-                    {PROVINCE_LABELS[provinceFilter]} ·{" "}
-                    {PROVINCE_VIEWPORTS[provinceFilter]?.culinaryTitle}
-                  </h3>
-                  <p>{PROVINCE_VIEWPORTS[provinceFilter]?.desc}</p>
+
+                  <button
+                    type="button"
+                    className="btn-hero-secondary"
+                    onClick={() => handleSelectProvince("all")}
+                  >
+                    ← 返回全国 34 省份图标墙
+                  </button>
                 </div>
 
-                <button
-                  type="button"
-                  className="btn-hero-secondary"
-                  onClick={() => {
-                    setProvinceFilter("all");
-                    setProvSigCategory("all");
-                  }}
-                >
-                  ← 返回全国 34 省总览
-                </button>
+                {/* 📌 省内更多地市州代表名味补全 */}
+                {PROVINCE_EXTRA_PREFECTURE_DISHES[provinceFilter]?.length > 0 && (
+                  <div className="cfp-prov-extra-cities">
+                    <span className="cfp-prov-extra-label">
+                      📌 省内更多地市州代表名味速览：
+                    </span>
+                    <div className="cfp-prov-extra-pills">
+                      {PROVINCE_EXTRA_PREFECTURE_DISHES[provinceFilter].map((item) => (
+                        <span key={item} className="cfp-prov-extra-pill">
+                          {item}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
 
-              {/* 📌 省内更多地市州代表名味速览 */}
-              {PROVINCE_EXTRA_PREFECTURE_DISHES[provinceFilter]?.length > 0 && (
-                <div className="cfp-prov-extra-cities">
-                  <span className="cfp-prov-extra-label">
-                    📌 省内更多地市州代表名味速览：
-                  </span>
-                  <div className="cfp-prov-extra-pills">
-                    {PROVINCE_EXTRA_PREFECTURE_DISHES[provinceFilter].map((item) => (
-                      <span key={item} className="cfp-prov-extra-pill">
-                        {item}
-                      </span>
-                    ))}
-                  </div>
+              {/* 2. 第一步：先显示该省份下的每个城市 */}
+              <div className="cfp-prov-cities-block">
+                <div className="cfp-prov-cities-subheading">
+                  <h4>
+                    📍 一、{PROVINCE_LABELS[provinceFilter]}重点美食城市（共 {filteredCities.length} 城 · 点击城市卡进入五卷完整食单）
+                  </h4>
                 </div>
-              )}
 
-              {/* 全省必吃招牌菜大汇总画廊 */}
-              <div className="cfp-prov-sig-gallery">
+                <div
+                  className="cfp-city-magazine-grid"
+                  role="navigation"
+                  aria-label={`${PROVINCE_LABELS[provinceFilter]}美食城市列表`}
+                >
+                  {filteredCities.map((city) => {
+                    const topCard = city.volumes[0]?.cards[0];
+                    const heroPhoto =
+                      topCard?.photoUrl ?? `/photos/${topCard?.id ?? "chengdu-mapo"}.jpg`;
+                    const cuisineMeta =
+                      EIGHT_CUISINES_META[city.eightCuisine] ?? EIGHT_CUISINES_META.local;
+                    const allCityCards = city.volumes.flatMap((v) => v.cards);
+                    const tastedCountInCity = allCityCards.filter((c) =>
+                      tastedDishSet.has(c.id),
+                    ).length;
+
+                    return (
+                      <article
+                        key={city.id}
+                        className="cfp-city-mag-card"
+                        data-testid={`city-${city.id}`}
+                        onClick={() => onEnterGazetteer(city.id)}
+                      >
+                        <div className="cfp-city-mag-media">
+                          <img
+                            src={assetUrl(heroPhoto)}
+                            alt={`${city.name} · ${topCard?.title ?? city.signatureDishes[0]}`}
+                            loading="lazy"
+                            onError={(e) => {
+                              e.currentTarget.style.opacity = "0.25";
+                            }}
+                          />
+                          <div className="cfp-city-mag-shade" />
+                          <div className="cfp-city-mag-top-badges">
+                            <span
+                              className="cfp-city-mag-seal"
+                              style={{ background: cuisineMeta.color }}
+                            >
+                              {cuisineMeta.code}
+                            </span>
+                            <span className="cfp-city-mag-prov">
+                              {city.provinceLabel} · {city.cuisineTag}
+                            </span>
+                            {tastedCountInCity > 0 && (
+                              <span className="cfp-city-mag-tasted">
+                                🥢 已尝 {tastedCountInCity} 道
+                              </span>
+                            )}
+                          </div>
+                          <div className="cfp-city-mag-title-overlay">
+                            <div className="cfp-city-mag-name-row">
+                              <h3>{city.name}</h3>
+                              <span className="cfp-city-mag-flavor">{city.dominantFlavor}</span>
+                              <span className="cfp-city-mag-staple">{city.stapleType}</span>
+                            </div>
+                            <p className="cfp-city-mag-headline">{city.heroHeadline}</p>
+                          </div>
+                        </div>
+
+                        <div className="cfp-city-mag-body">
+                          <p className="cfp-city-mag-dek">{city.heroDek}</p>
+
+                          {/* 招牌大菜/小吃直达胶囊 */}
+                          <div className="cfp-city-mag-dishes">
+                            <span className="cfp-cmd-label">必吃招牌直达：</span>
+                            <div className="cfp-cmd-pills">
+                              {allCityCards.slice(0, 10).map((card) => {
+                                const isTasted = tastedDishSet.has(card.id);
+                                return (
+                                  <button
+                                    key={card.id}
+                                    type="button"
+                                    className={`cfp-cmd-pill${isTasted ? " is-tasted" : ""}`}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      onEnterGazetteer(city.id, card.category, card.id);
+                                    }}
+                                    title={`直达《${city.name}》· ${card.title}`}
+                                  >
+                                    {isTasted ? "✓ " : ""}
+                                    {card.title}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+
+                          <div className="cfp-city-mag-footer">
+                            <span className="cfp-city-card-count">
+                              收录 {allCityCards.length} 道代表名馔与老店
+                            </span>
+                            <span className="cfp-city-enter-link">翻阅城市食单 →</span>
+                          </div>
+                        </div>
+                      </article>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* 3. 第二步：再显示该省份下的全部美食集合 */}
+              <div className="cfp-prov-sig-gallery" data-testid="province-dishes-collection">
                 <div className="cfp-prov-sig-bar">
                   <h4>
-                    🍽️ {PROVINCE_LABELS[provinceFilter]}必吃招牌菜大汇总（{provVisibleDishes.length} 道）
+                    🍽️ 二、{PROVINCE_LABELS[provinceFilter]}必吃美食大集合（共 {provVisibleDishes.length} 道代表作）
                   </h4>
                   <div className="cfp-stream-tabs" role="tablist" aria-label="本省招牌菜品类筛选">
                     <button
@@ -706,114 +1022,6 @@ export function ChinaFoodPortal({
                   })}
                 </div>
               </div>
-
-              <div className="cfp-prov-cities-subheading">
-                <h4>
-                  📍 {PROVINCE_LABELS[provinceFilter]}重点美食城市分卷（共 {filteredCities.length} 城）
-                </h4>
-              </div>
-            </div>
-          )}
-
-          {/* 3 列城市美食画报网格 */}
-          {filteredCities.length === 0 ? (
-            <div className="passport-empty-box">
-              <p>未找到匹配的美食城市，请尝试重置片区、味型或搜索关键词。</p>
-            </div>
-          ) : (
-            <div className="cfp-city-magazine-grid" role="navigation" aria-label="全国美食城市画报墙">
-              {filteredCities.map((city) => {
-                const topCard = city.volumes[0]?.cards[0];
-                const heroPhoto =
-                  topCard?.photoUrl ?? `/photos/${topCard?.id ?? "chengdu-mapo"}.jpg`;
-                const cuisineMeta =
-                  EIGHT_CUISINES_META[city.eightCuisine] ?? EIGHT_CUISINES_META.local;
-                const allCityCards = city.volumes.flatMap((v) => v.cards);
-                const tastedCountInCity = allCityCards.filter((c) =>
-                  tastedDishSet.has(c.id),
-                ).length;
-
-                return (
-                  <article
-                    key={city.id}
-                    className="cfp-city-mag-card"
-                    data-testid={`city-${city.id}`}
-                    onClick={() => onEnterGazetteer(city.id)}
-                  >
-                    <div className="cfp-city-mag-media">
-                      <img
-                        src={assetUrl(heroPhoto)}
-                        alt={`${city.name} · ${topCard?.title ?? city.signatureDishes[0]}`}
-                        loading="lazy"
-                        onError={(e) => {
-                          e.currentTarget.style.opacity = "0.25";
-                        }}
-                      />
-                      <div className="cfp-city-mag-shade" />
-                      <div className="cfp-city-mag-top-badges">
-                        <span
-                          className="cfp-city-mag-seal"
-                          style={{ background: cuisineMeta.color }}
-                        >
-                          {cuisineMeta.code}
-                        </span>
-                        <span className="cfp-city-mag-prov">
-                          {city.provinceLabel} · {city.cuisineTag}
-                        </span>
-                        {tastedCountInCity > 0 && (
-                          <span className="cfp-city-mag-tasted">
-                            🥢 已尝 {tastedCountInCity} 道
-                          </span>
-                        )}
-                      </div>
-                      <div className="cfp-city-mag-title-overlay">
-                        <div className="cfp-city-mag-name-row">
-                          <h3>{city.name}</h3>
-                          <span className="cfp-city-mag-flavor">{city.dominantFlavor}</span>
-                          <span className="cfp-city-mag-staple">{city.stapleType}</span>
-                        </div>
-                        <p className="cfp-city-mag-headline">{city.heroHeadline}</p>
-                      </div>
-                    </div>
-
-                    <div className="cfp-city-mag-body">
-                      <p className="cfp-city-mag-dek">{city.heroDek}</p>
-
-                      {/* 招牌大菜/小吃直达胶囊 */}
-                      <div className="cfp-city-mag-dishes">
-                        <span className="cfp-cmd-label">必吃招牌直达：</span>
-                        <div className="cfp-cmd-pills">
-                          {allCityCards.slice(0, 10).map((card) => {
-                            const isTasted = tastedDishSet.has(card.id);
-                            return (
-                              <button
-                                key={card.id}
-                                type="button"
-                                className={`cfp-cmd-pill${isTasted ? " is-tasted" : ""}`}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  onEnterGazetteer(city.id, card.category, card.id);
-                                }}
-                                title={`直达《${city.name}》· ${card.title}`}
-                              >
-                                {isTasted ? "✓ " : ""}
-                                {card.title}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-
-                      <div className="cfp-city-mag-footer">
-                        <span className="cfp-city-card-count">
-                          收录 {allCityCards.length} 道代表名馔与老店
-                        </span>
-                        <span className="cfp-city-enter-link">翻阅城市食单 →</span>
-                      </div>
-                    </div>
-                  </article>
-                );
-              })}
             </div>
           )}
         </section>
@@ -833,7 +1041,7 @@ export function ChinaFoodPortal({
               </span>
               <h2>二、十大中华饮食专题馆</h2>
               <p>
-                打破省界藩篱，按菜系、面食、米粉、火锅、早茶、夜市、糕点、茶酒、节气与名宴十个维度纵览华夏风味精髓
+                打破省界藩篱，按菜系、碳水早点、面食、米粉、火锅、夜市、糕点、茶酒、节气与名宴十个维度纵览华夏风味精髓
               </p>
             </div>
             <button
